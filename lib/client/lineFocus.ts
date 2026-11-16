@@ -78,6 +78,7 @@ function alongBranch(run: VehicleRun, k: number, i: number, branch: FocusBranch,
   return k === run.stops.length - 1 && i === last && i > 0 && st(k - 1) === branch.stations[i - 1];
 }
 
+/** `runs` must already be limited to the focused line: a branch carries no lineId, so other lines' runs would pollute the times. */
 export function nextArrivalsAlongBranch(
   branch: FocusBranch,
   runs: VehicleRun[],

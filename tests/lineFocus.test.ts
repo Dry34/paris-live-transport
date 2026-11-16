@@ -97,6 +97,18 @@ describe('nextArrivalsAlongBranch', () => {
     expect(r.S2.seconds).toBe(60);
     expect(r.S3.seconds).toBe(120);
   });
+  it('ignores a run coming from the next branch station and leaving to a sibling branch', () => {
+    const r = nextArrivalsAlongBranch(b4, [run('H', [['q4', null, t + 10_000], ['q3', t + 60_000, t + 70_000], ['q5', t + 130_000, null]])], net, t);
+    expect(r.S3.seconds).toBeNull();
+  });
+  it('computes arrivals for a direction 1 branch', () => {
+    const b1 = lineBranches(net, L).find((b) => b.directionId === 1)!;
+    const r = nextArrivalsAlongBranch(b1, [run('I', [['q3b', t + 30_000, t + 35_000], ['q2b', t + 90_000, t + 95_000], ['q1b', t + 150_000, null]])], net, t);
+    expect(r.S3.seconds).toBe(30);
+    expect(r.S2.seconds).toBe(90);
+    expect(r.S1.seconds).toBe(150);
+    expect(r.S5.seconds).toBeNull();
+  });
   it('past times are ignored', () => {
     const r = nextArrivalsAlongBranch(b4, [run('G', [['q2', t - 60_000, t - 50_000], ['q3', t + 10_000, t + 20_000], ['q4', t + 80_000, null]])], net, t);
     expect(r.S2.seconds).toBeNull();
