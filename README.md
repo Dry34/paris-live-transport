@@ -6,10 +6,10 @@ Carte en direct des métros, RER, tramways et Transilien J/L de Paris, avec posi
 
 - Carte MapLibre avec les rames de 38 lignes (16 métros, 5 RER, 15 tramways, Transilien J et L), aux couleurs officielles des lignes.
 - Positions des rames estimées en continu entre deux arrêts, avec une garde anti-recul quand un nouvel instantané corrige légèrement une rame.
-- Panneau latéral : filtres par mode et par ligne, informations sur une rame (ligne, destination, prochain arrêt).
+- Panneau latéral : pastilles des lignes (un clic met la ligne en focus), informations sur une rame (ligne, destination, prochain arrêt).
 - Panneau de station : prochains passages par ligne et direction.
 - Perturbations en cours (disruptions PRIM) affichées par ligne.
-- Pages ligne (`/lignes/[id]`) avec diagramme de la ligne et rames en direct.
+- Focus ligne (`/lignes/[id]`) : la carte cadre la ligne choisie et n’affiche plus que son tracé, ses rames et ses arrêts.
 - Interface en français.
 
 ## Limites

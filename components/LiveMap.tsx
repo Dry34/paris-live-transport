@@ -1,11 +1,13 @@
 'use client';
 // Full-screen MapLibre map: line shapes, stations and estimated train positions animated
-// with requestAnimationFrame (capped at ~30 fps) from the latest snapshot.
+// with requestAnimationFrame (capped at ~30 fps) from the latest snapshot. With a focused line the map frames
+// it, fades the other shapes and only draws that line's trains and stations.
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { FilterSpecification, GeoJSONSource, Map as MlMap, Popup } from 'maplibre-gl';
+import type { DataDrivenPropertyValueSpecification, GeoJSONSource, Map as MlMap, Popup } from 'maplibre-gl';
 import type { Network, Snapshot, VehicleRun } from '@/lib/types';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
+import { lineBounds } from '@/lib/client/lineFocus';
 import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
 import { VehiclePopup } from './VehiclePopup';
 
@@ -15,6 +17,13 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 const CENTER: [number, number] = [2.3488, 48.8534];
 const FRAME_MS = 1000 / 30;
 const LINE_WIDTH = { metro: 3.2, rer: 3.6, transilien: 3, tram: 2 } as const;
+const CAMERA_MS = 800;
+const FIT_PADDING = 40;
+const STATION_ZOOM = 14;
+/** Station layers' minimum zoom without a focus (with one, the line's stations show at any zoom). */
+const STATIONS_MINZOOM = 12;
+const STATION_LABELS_MINZOOM = 14;
+const FADED_OPACITY = 0.12;
 
 type FC = GeoJSON.FeatureCollection;
 const featureCollection = (features: GeoJSON.Feature[]): FC => ({ type: 'FeatureCollection', features });
@@ -22,9 +31,14 @@ const featureCollection = (features: GeoJSON.Feature[]): FC => ({ type: 'Feature
 export interface LiveMapProps {
   network: Network;
   snapshot: Snapshot | null;
-  hiddenLines: ReadonlySet<string>;
+  /** Line shown alone (others faded), or null for the whole network. */
+  focusLineId: string | null;
+  /** Station to ease to (zoom at least 14), or null. */
+  centerStationId: string | null;
+  /** Map area covered by the side panel, kept clear when framing. */
+  panelInset: { left: number; bottom: number };
   onStationClick: (stationId: string) => void;
-  onShownCountChange: (count: number) => void;
+  onShownCountChange?: (count: number) => void;
 }
 
 interface SelectedView { run: VehicleRun; position: RunPosition; now: number }
@@ -43,10 +57,10 @@ function shapesData(network: Network): FC {
   return featureCollection(features);
 }
 
-function stationsData(network: Network, hidden: ReadonlySet<string>): FC {
+function stationsData(network: Network, focus: string | null): FC {
   return featureCollection(
     Object.values(network.stations)
-      .filter((s) => s.lines.some((id) => network.lines[id] && !hidden.has(id)))
+      .filter((s) => (focus ? s.lines.includes(focus) : s.lines.some((id) => network.lines[id])))
       .map((s) => ({
         type: 'Feature',
         properties: { id: s.id, name: s.name },
@@ -55,14 +69,30 @@ function stationsData(network: Network, hidden: ReadonlySet<string>): FC {
   );
 }
 
-const lineFilter = (hidden: ReadonlySet<string>): FilterSpecification => ['!', ['in', ['get', 'lineId'], ['literal', [...hidden]]]];
+const isFocus = (focus: string): ['==', ['get', 'lineId'], string] => ['==', ['get', 'lineId'], focus];
+const lineOpacity = (focus: string | null): DataDrivenPropertyValueSpecification<number> =>
+  focus ? ['case', isFocus(focus), 1, FADED_OPACITY] : 1;
+/** The focused line is drawn above every other shape. */
+const lineSortKey = (focus: string | null): DataDrivenPropertyValueSpecification<number> =>
+  focus ? ['case', isFocus(focus), 2, ['get', 'sort']] : ['get', 'sort'];
 
-export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShownCountChange }: LiveMapProps) {
+/** Line layer styling and station layer zoom ranges for a focus (or none). */
+function applyFocusStyle(m: MlMap, focus: string | null) {
+  m.setPaintProperty('lines', 'line-opacity', lineOpacity(focus));
+  m.setLayoutProperty('lines', 'line-sort-key', lineSortKey(focus));
+  m.setLayerZoomRange('stations', focus ? 0 : STATIONS_MINZOOM, 24);
+  m.setLayerZoomRange('station-labels', focus ? 0 : STATION_LABELS_MINZOOM, 24);
+}
+
+export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onShownCountChange }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const readyRef = useRef(false);
   const snapshotRef = useRef(snapshot);
-  const hiddenRef = useRef(hiddenLines);
+  const focusRef = useRef(focusLineId);
+  const insetRef = useRef(panelInset);
+  /** Line the camera last framed (null: whole network), so a style reload or new props don't refit. */
+  const framedRef = useRef<string | null>(null);
   const positionsRef = useRef(new Map<string, RunPosition>());
   const selectedRef = useRef<string | null>(null);
   const callbacksRef = useRef({ onStationClick, onShownCountChange });
@@ -71,9 +101,11 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [popupNode, setPopupNode] = useState<HTMLDivElement | null>(null);
   const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   snapshotRef.current = snapshot;
   callbacksRef.current = { onStationClick, onShownCountChange };
+  insetRef.current = panelInset;
   selectedRef.current = selectedId;
 
   // Map creation, layers and the animation loop.
@@ -88,17 +120,17 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
       if (m.getSource('lines')) return;
       const firstSymbol = m.getStyle().layers.find((l) => l.type === 'symbol')?.id;
       m.addSource('lines', { type: 'geojson', data: shapesData(network) });
-      m.addSource('stations', { type: 'geojson', data: stationsData(network, hiddenRef.current) });
+      m.addSource('stations', { type: 'geojson', data: stationsData(network, focusRef.current) });
       m.addSource('vehicles', { type: 'geojson', data: featureCollection([]) });
       m.addLayer(
         {
           id: 'lines',
           type: 'line',
           source: 'lines',
-          filter: lineFilter(hiddenRef.current),
-          layout: { 'line-join': 'round', 'line-cap': 'round', 'line-sort-key': ['get', 'sort'] },
+          layout: { 'line-join': 'round', 'line-cap': 'round', 'line-sort-key': lineSortKey(focusRef.current) },
           paint: {
             'line-color': ['get', 'color'],
+            'line-opacity': lineOpacity(focusRef.current),
             'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['*', ['get', 'w'], 0.5], 12, ['get', 'w'], 16, ['*', ['get', 'w'], 2.2]],
           },
         },
@@ -109,7 +141,7 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
           id: 'stations',
           type: 'circle',
           source: 'stations',
-          minzoom: 12,
+          minzoom: focusRef.current ? 0 : STATIONS_MINZOOM,
           paint: {
             'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 6],
             'circle-color': media.matches ? '#1c2230' : '#ffffff',
@@ -123,7 +155,7 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
         id: 'station-labels',
         type: 'symbol',
         source: 'stations',
-        minzoom: 14,
+        minzoom: focusRef.current ? 0 : STATION_LABELS_MINZOOM,
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -175,6 +207,7 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
         paint: { 'text-color': ['get', 'textColor'] },
       });
       readyRef.current = true;
+      setMapReady(true);
     };
 
     const draw = () => {
@@ -183,12 +216,14 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
       if (!source) return;
       const snap = snapshotRef.current;
       const now = Date.now();
-      const hidden = hiddenRef.current;
+      // Only the focused line's trains enter the shared `vehicles` source, which filters the
+      // vehicles, vehicle-labels and vehicle-halo layers alike (and the shown-trains count).
+      const focus = focusRef.current;
       const positions = new Map<string, RunPosition>();
       const features: GeoJSON.Feature[] = [];
       for (const run of snap?.runs ?? []) {
         const line = network.lines[run.lineId];
-        if (!line || hidden.has(run.lineId)) continue;
+        if (!line || (focus && run.lineId !== focus)) continue;
         const p = smooth(run.id, positionAt(run, network, now));
         if (!p) continue;
         positions.set(run.id, p);
@@ -270,19 +305,48 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
       cancelAnimationFrame(raf);
       media.removeEventListener('change', onScheme);
       readyRef.current = false;
+      setMapReady(false);
+      framedRef.current = null;
       map?.remove();
       mapRef.current = null;
     };
   }, [network]);
 
-  // Line filter: hide shapes, stations and (in the loop) trains of hidden lines.
+  // Focus: fade the other shapes, keep only the line's stations, and frame the line (or go back to Paris).
   useEffect(() => {
-    hiddenRef.current = hiddenLines;
+    focusRef.current = focusLineId;
     const map = mapRef.current;
-    if (!map || !readyRef.current) return;
-    map.setFilter('lines', lineFilter(hiddenLines));
-    map.getSource<GeoJSONSource>('stations')?.setData(stationsData(network, hiddenLines));
-  }, [hiddenLines, network]);
+    if (!map || !mapReady || !readyRef.current) return;
+    applyFocusStyle(map, focusLineId);
+    map.getSource<GeoJSONSource>('stations')?.setData(stationsData(network, focusLineId));
+    if (framedRef.current === focusLineId) return;
+    const wasFocused = framedRef.current !== null;
+    framedRef.current = focusLineId;
+    const bounds = focusLineId ? lineBounds(network, focusLineId) : null;
+    if (bounds) {
+      const inset = insetRef.current;
+      map.fitBounds(bounds, {
+        padding: { top: FIT_PADDING, right: FIT_PADDING, bottom: FIT_PADDING + inset.bottom, left: FIT_PADDING + inset.left },
+        duration: CAMERA_MS,
+      });
+    } else if (!focusLineId && wasFocused) {
+      map.easeTo({ center: CENTER, zoom: 11, duration: CAMERA_MS });
+    }
+  }, [focusLineId, network, mapReady]);
+
+  // Station picked in the panel: ease to it, centered in the part of the map the panel leaves visible.
+  useEffect(() => {
+    const map = mapRef.current;
+    const station = centerStationId ? network.stations[centerStationId] : undefined;
+    if (!map || !mapReady || !station) return;
+    const inset = insetRef.current;
+    map.easeTo({
+      center: [station.lon, station.lat],
+      zoom: Math.max(map.getZoom(), STATION_ZOOM),
+      offset: [inset.left / 2, -inset.bottom / 2],
+      duration: CAMERA_MS,
+    });
+  }, [centerStationId, network, mapReady]);
 
   // Popup that follows the selected train.
   useEffect(() => {
@@ -313,7 +377,7 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
   // Popup text and the shown-trains counter refresh once per second (not per frame).
   useEffect(() => {
     const tick = () => {
-      callbacksRef.current.onShownCountChange(positionsRef.current.size);
+      callbacksRef.current.onShownCountChange?.(positionsRef.current.size);
       const id = selectedRef.current;
       if (!id) {
         setSelectedView(null);

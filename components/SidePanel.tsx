@@ -1,8 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Ref } from 'react';
 import type { Disruption, Mode, Network, Snapshot } from '@/lib/types';
-import Link from 'next/link';
-import { lineSlug } from '@/lib/lineSlug';
 import { LineBadge, MODE_LABELS, lineName } from './LineBadge';
 
 const MODES: Mode[] = ['metro', 'rer', 'tram', 'transilien'];
@@ -11,10 +9,13 @@ export interface SidePanelProps {
   network: Network | null;
   snapshot: Snapshot | null;
   disruptions: Disruption[];
-  hiddenLines: ReadonlySet<string>;
   shownCount: number;
-  onToggleLine: (lineId: string) => void;
-  onToggleMode: (mode: Mode, visible: boolean) => void;
+  focusLineId: string | null;
+  onFocusLine: (lineId: string | null) => void;
+  /** Centers the map on a station and opens its panel (used by the line sheet). */
+  onStationSelect: (stationId: string) => void;
+  /** The panel element, measured by the shell to keep the map's focus framing clear of it. */
+  panelRef?: Ref<HTMLElement>;
 }
 
 function formatAge(fetchedAt: number, now: number): string {
@@ -33,7 +34,7 @@ function useNow(everyMs: number): number {
   return now;
 }
 
-export function SidePanel({ network, snapshot, disruptions, hiddenLines, shownCount, onToggleLine, onToggleMode }: SidePanelProps) {
+export function SidePanel({ network, snapshot, disruptions, shownCount, focusLineId, onFocusLine, panelRef }: SidePanelProps) {
   const [open, setOpen] = useState(true);
   const now = useNow(1000);
   // On phones the panel is a bottom sheet: start folded so the map stays visible.
@@ -43,7 +44,7 @@ export function SidePanel({ network, snapshot, disruptions, hiddenLines, shownCo
   const lines = network ? Object.values(network.lines) : [];
 
   return (
-    <section className={`side-panel${open ? ' is-open' : ''}`} aria-label="Filtres et état du trafic">
+    <section ref={panelRef} className={`side-panel${open ? ' is-open' : ''}`} aria-label="Lignes et état du trafic">
       <header className="side-head">
         <div className="side-title">
           <h1>Paris, rames en direct</h1>
@@ -72,33 +73,25 @@ export function SidePanel({ network, snapshot, disruptions, hiddenLines, shownCo
         {MODES.map((mode) => {
           const modeLines = lines.filter((l) => l.mode === mode);
           if (modeLines.length === 0) return null;
-          const visible = modeLines.some((l) => !hiddenLines.has(l.id));
           return (
             <div key={mode} className="mode-group">
               <div className="mode-head">
                 <h2>{MODE_LABELS[mode]}</h2>
-                <button type="button" className="mode-switch" aria-pressed={visible} onClick={() => onToggleMode(mode, !visible)}>
-                  {visible ? 'Tout masquer' : 'Tout afficher'}
-                </button>
               </div>
               <div className="line-grid">
                 {modeLines.map((l) => {
-                  const shown = !hiddenLines.has(l.id);
+                  const focused = l.id === focusLineId;
                   return (
-                    <span key={l.id} className="line-cell">
                     <button
+                      key={l.id}
                       type="button"
                       className="line-toggle"
-                      aria-pressed={shown}
-                      aria-label={`${lineName(l)} : ${shown ? 'affichée' : 'masquée'}`}
-                      onClick={() => onToggleLine(l.id)}
+                      aria-pressed={focused}
+                      aria-label={focused ? `${lineName(l)} : revenir à toutes les lignes` : `Afficher seulement la ligne ${lineName(l)}`}
+                      onClick={() => onFocusLine(focused ? null : l.id)}
                     >
                       <LineBadge line={l} />
                     </button>
-                      <Link href={`/lignes/${lineSlug(l)}`} className="line-link" aria-label={`Page de la ligne : ${lineName(l)}`} title={`Page ${lineName(l)}`}>
-                        <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3 9l6-6M4 3h5v5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      </Link>
-                    </span>
                   );
                 })}
               </div>

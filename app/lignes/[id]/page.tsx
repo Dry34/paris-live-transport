@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getNetwork } from '@/lib/realtime/poller';
 import { resolveLineId } from '@/lib/lineSlug';
-import { LinePageClient } from '@/components/LinePageClient';
+import { AppShell } from '@/components/AppShell';
 import { lineName } from '@/components/LineBadge';
 
 export const dynamic = 'force-dynamic';
@@ -20,5 +20,5 @@ export default async function LinePage({ params }: Props) {
   const { id } = await params;
   const lineId = resolveLineId(getNetwork(), decodeURIComponent(id));
   if (!lineId) notFound();
-  return <LinePageClient lineId={lineId} />;
+  return <AppShell initialLineId={lineId} />;
 }
