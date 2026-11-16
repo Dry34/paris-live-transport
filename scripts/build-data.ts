@@ -1,9 +1,8 @@
 // Télécharge le GTFS IDFM et écrit public/data/network.json.
-// Usage : npm run build:data
-import { createWriteStream, existsSync, mkdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
+// Usage : npm run build:data [-- --force]   (--force ignore le cache .cache/gtfs.zip)
+import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
+import type { Readable } from 'node:stream';
 import yauzl from 'yauzl';
 import { parse } from 'csv-parse';
 import type { LineInfo, LngLat, Network, Pattern, Segment } from '../lib/types';
@@ -20,6 +19,7 @@ import {
   type GtfsStopTime,
   type GtfsTrip,
 } from '../lib/static/gtfs-build';
+import { ensureGtfsZip } from '../lib/static/gtfs-download';
 
 const GTFS_URL = 'https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip';
 const ROOT = path.resolve(__dirname, '..');
@@ -29,17 +29,12 @@ const MAX_AGE_MS = 24 * 3600 * 1000;
 const SIMPLIFY_M = 5;
 
 async function ensureZip(): Promise<void> {
-  if (existsSync(ZIP) && Date.now() - statSync(ZIP).mtimeMs < MAX_AGE_MS) {
-    console.log('GTFS en cache (< 24 h) :', ZIP);
-    return;
-  }
-  mkdirSync(path.dirname(ZIP), { recursive: true });
-  console.log('Téléchargement', GTFS_URL);
-  const res = await fetch(GTFS_URL);
-  if (!res.ok || !res.body) throw new Error(`Téléchargement GTFS : HTTP ${res.status}`);
-  const tmp = `${ZIP}.part`;
-  await pipeline(Readable.fromWeb(res.body as never), createWriteStream(tmp));
-  renameSync(tmp, ZIP);
+  const force = process.argv.includes('--force');
+  if (!force) console.log('Cache GTFS :', ZIP, '(réutilisé s’il a < 24 h)');
+  else console.log('Téléchargement forcé', GTFS_URL);
+  const t0 = Date.now();
+  const r = await ensureGtfsZip({ zipPath: ZIP, url: GTFS_URL, maxAgeMs: MAX_AGE_MS, force });
+  console.log(r === 'cache' ? 'GTFS en cache (< 24 h), pas de téléchargement' : `GTFS téléchargé en ${((Date.now() - t0) / 1000).toFixed(0)} s (${(statSync(ZIP).size / 1e6).toFixed(1)} Mo)`);
 }
 
 function openZip(file: string): Promise<{ zip: yauzl.ZipFile; entries: Map<string, yauzl.Entry> }> {

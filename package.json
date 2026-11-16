@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "build:data": "tsx scripts/build-data.ts",
+    "check:data": "tsx scripts/check-data.ts",
     "fixture": "tsx scripts/make-fixture.ts"
   },
   "dependencies": {
