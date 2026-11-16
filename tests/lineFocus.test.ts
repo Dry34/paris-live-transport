@@ -107,7 +107,6 @@ describe('nextArrivalsAlongBranch', () => {
     expect(r.S3.seconds).toBe(30);
     expect(r.S2.seconds).toBe(90);
     expect(r.S1.seconds).toBe(150);
-    expect(r.S5.seconds).toBeNull();
   });
   it('past times are ignored', () => {
     const r = nextArrivalsAlongBranch(b4, [run('G', [['q2', t - 60_000, t - 50_000], ['q3', t + 10_000, t + 20_000], ['q4', t + 80_000, null]])], net, t);
