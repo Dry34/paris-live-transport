@@ -91,8 +91,8 @@ describe('parseEstimatedTimetable', () => {
       destination: 'Marne-la-Vallée Chessy',
       operator: 'SNCF',
       calls: [
-        { quay: '22083', arr: Date.parse('2026-11-16T10:01:00.000Z'), dep: null },
-        { quay: 'monomodalStopPlace:58937', arr: Date.parse('2026-11-16T10:05:00.000Z'), dep: Date.parse('2026-11-16T10:06:00.000Z') },
+        { quay: '22083', arr: Date.parse('2026-11-16T10:01:00.000Z'), dep: null, delaySec: null },
+        { quay: 'monomodalStopPlace:58937', arr: Date.parse('2026-11-16T10:05:00.000Z'), dep: Date.parse('2026-11-16T10:06:00.000Z'), delaySec: 30 },
       ],
     });
     expect(journeys[1].operator).toBe('RATP');
@@ -108,3 +108,28 @@ describe('parseEstimatedTimetable', () => {
     expect(quays.filter((q) => net.quays[q])).toHaveLength(quays.length);
   });
 });
+
+describe('delaySec par arrêt', () => {
+  const call = (extra: Record<string, string>) => ({
+    LineRef: { value: 'STIF:Line::C01371:' },
+    DirectionRef: { value: 'Aller' },
+    DatedVehicleJourneyRef: { value: 'RATP:VJ:1' },
+    DestinationName: [{ value: 'X' }],
+    EstimatedCalls: { EstimatedCall: [{ StopPointRef: { value: 'STIF:StopPoint:Q:123:' }, ...extra }] },
+  });
+  const delayOf = (extra: Record<string, string>) => parseEstimatedTimetable(wrap([call(extra)])).journeys[0].calls[0].delaySec;
+
+  it('attendu - théorique sur l\'arrivée', () => {
+    expect(delayOf({ AimedArrivalTime: '2026-11-16T10:00:00Z', ExpectedArrivalTime: '2026-11-16T10:02:05Z' })).toBe(125);
+  });
+  it('avance négative', () => {
+    expect(delayOf({ AimedArrivalTime: '2026-11-16T10:00:30Z', ExpectedArrivalTime: '2026-11-16T10:00:00Z' })).toBe(-30);
+  });
+  it('repli sur le départ', () => {
+    expect(delayOf({ AimedDepartureTime: '2026-11-16T10:00:00Z', ExpectedDepartureTime: '2026-11-16T10:01:00Z' })).toBe(60);
+  });
+  it('seulement Expected → null', () => {
+    expect(delayOf({ ExpectedArrivalTime: '2026-11-16T10:02:05Z' })).toBeNull();
+  });
+});
+

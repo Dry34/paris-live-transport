@@ -17,9 +17,9 @@ export interface Network {
 
 export interface Journey {          // sortie du parsing SIRI
   ref: string; lineId: string; direction: string; destination: string; operator: 'RATP' | 'SNCF' | 'OTHER';
-  calls: { quay: string; arr: number | null; dep: number | null }[];   // epoch ms
+  calls: { quay: string; arr: number | null; dep: number | null; delaySec?: number | null }[];   // epoch ms; delaySec = attendu − théorique (s), null si inconnu
 }
-export interface RunStop { quay: string; arr: number | null; dep: number | null }
+export interface RunStop { quay: string; arr: number | null; dep: number | null; delaySec?: number | null }
 export interface VehicleRun {
   id: string; lineId: string; direction: string; destination: string;
   stops: RunStop[];                  // stops[0] = station précédente si connue

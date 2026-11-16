@@ -51,7 +51,14 @@ function parseJourney(j: Raw): Journey | null {
     const a = time(c.ExpectedArrivalTime) ?? time(c.AimedArrivalTime);
     const d = time(c.ExpectedDepartureTime) ?? time(c.AimedDepartureTime);
     if (!quay || (a === null && d === null)) continue;
-    calls.push({ quay, arr: a, dep: d });
+    const delta = (exp: unknown, aimed: unknown): number | null => {
+      const e = time(exp);
+      const t = time(aimed);
+      return e !== null && t !== null ? Math.round((e - t) / 1000) : null;
+    };
+    const delaySec =
+      delta(c.ExpectedArrivalTime, c.AimedArrivalTime) ?? delta(c.ExpectedDepartureTime, c.AimedDepartureTime);
+    calls.push({ quay, arr: a, dep: d, delaySec });
   }
   if (calls.length === 0) return null;
   calls.sort((x, y) => (x.arr ?? x.dep!) - (y.arr ?? y.dep!));

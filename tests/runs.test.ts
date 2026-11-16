@@ -230,3 +230,32 @@ describe('buildRuns', () => {
     expect(runs[0].id).toBe(`${L}:Aller:B:${T + 30 * S}`);
   });
 });
+
+describe('buildRuns delaySec', () => {
+  const net = miniNetwork();
+  it('recopie delaySec sur les stops, stop précédent inféré → null', () => {
+    const j = journey('d1', [['B', T + 30 * S], ['C', T + 90 * S]]);
+    j.calls[0].delaySec = 125;
+    j.calls[1].delaySec = null;
+    const r = buildRuns([j], net, null, T)[0];
+    expect(r.stops.map((s) => s.delaySec)).toEqual([null, 125, null]);
+  });
+  it('stop précédent hérité garde son delaySec', () => {
+    const previous: VehicleRun[] = [
+      {
+        id: 'old', lineId: L, direction: 'Aller', destination: 'D', hasPrevious: false, prevInferred: false,
+        stops: [
+          { quay: 'A', arr: T - 50 * S, dep: T - 30 * S, delaySec: 42 },
+          { quay: 'B', arr: T + 30 * S, dep: T + 50 * S, delaySec: 0 },
+          { quay: 'C', arr: T + 90 * S, dep: T + 110 * S, delaySec: 0 },
+        ],
+      },
+    ];
+    const j = journey('n', [['B', T + 70 * S], ['C', T + 130 * S]]);
+    j.calls[0].delaySec = 10;
+    const r = buildRuns([j], net, previous, T + 60 * S)[0];
+    expect(r.stops[0].delaySec).toBe(42);
+    expect(r.stops[1].delaySec).toBe(10);
+  });
+});
+
