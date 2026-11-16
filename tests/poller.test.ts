@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { getPoller, Poller } from '@/lib/realtime/poller';
 import { PrimError } from '@/lib/realtime/prim-client';
-import { loadBudget, loadSnapshot, recordCall, saveSnapshot } from '@/lib/realtime/store';
+import { loadBudget, loadDisruptions, loadSnapshot, recordCall, saveSnapshot } from '@/lib/realtime/store';
 import type { VehicleRun } from '@/lib/types';
 
 const S = 1000;
@@ -23,6 +23,7 @@ let dir: string;
 let clock: number;
 let calls: number;
 const now = () => clock;
+const okDisruptions = async () => ({ disruptions: [], lines: [] });
 const okFetch = async () => {
   calls++;
   return emptyEt(clock);
@@ -62,7 +63,7 @@ describe('store', () => {
 describe('Poller (live)', () => {
   it('redémarrage avec un snapshot de 30 s : aucun appel, snapshot servi depuis le cache', async () => {
     saveSnapshot(dir, { fetchedAt: T0 - 30 * S, journeys: [], runs: [oldRun] });
-    const p = new Poller({ now, fetchEt: okFetch, dir, live: true });
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions: okDisruptions, dir, live: true });
     const delay = await p.tick();
     expect(calls).toBe(0);
     expect(delay).toBe(70_000);
@@ -74,14 +75,14 @@ describe('Poller (live)', () => {
   });
 
   it('cumule callsToday entre deux pollers successifs sur le même dossier', async () => {
-    const p1 = new Poller({ now, fetchEt: okFetch, dir, live: true });
+    const p1 = new Poller({ now, fetchEt: okFetch, fetchDisruptions: okDisruptions, dir, live: true });
     expect(await p1.tick()).toBe(100_000);
     expect(calls).toBe(1);
     expect(p1.status().callsToday).toBe(1);
     expect(p1.snapshot()!.source).toBe('live');
 
     clock += 100 * S;
-    const p2 = new Poller({ now, fetchEt: okFetch, dir, live: true });
+    const p2 = new Poller({ now, fetchEt: okFetch, fetchDisruptions: okDisruptions, dir, live: true });
     expect(p2.snapshot()!.source).toBe('cache');
     await p2.tick();
     expect(calls).toBe(2);
@@ -96,7 +97,7 @@ describe('Poller (live)', () => {
       throw new PrimError(429);
     };
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const p = new Poller({ now, fetchEt, dir, live: true });
+    const p = new Poller({ now, fetchEt, fetchDisruptions: okDisruptions, dir, live: true });
     const delay = await p.tick();
     expect(log).toHaveBeenCalledOnce();
     expect(calls).toBe(1);
@@ -108,14 +109,14 @@ describe('Poller (live)', () => {
 
   it('plafond atteint : aucun appel, revérifie dans 5 min', async () => {
     for (let i = 0; i < 900; i++) recordCall(dir, 'et', T0);
-    const p = new Poller({ now, fetchEt: okFetch, dir, live: true });
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions: okDisruptions, dir, live: true });
     expect(await p.tick()).toBe(5 * 60_000);
     expect(calls).toBe(0);
   });
 
   it('hors fenêtre de service : aucun appel', async () => {
     clock = Date.parse('2026-11-16T02:00:00Z'); // 03:00 Paris
-    const p = new Poller({ now, fetchEt: okFetch, dir, live: true });
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions: okDisruptions, dir, live: true });
     expect(await p.tick()).toBe(5 * 60_000);
     expect(calls).toBe(0);
   });
@@ -153,7 +154,7 @@ describe('Poller.start / getPoller (contrat utilisé par les routes de la tâche
 
   it('start() est idempotent : un seul appel PRIM même si appelé plusieurs fois', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] });
-    const p = new Poller({ now, fetchEt: okFetch, dir, live: true });
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions: okDisruptions, dir, live: true });
     p.start();
     p.start();
     p.start();
@@ -171,5 +172,67 @@ describe('Poller.start / getPoller (contrat utilisé par les routes de la tâche
     const a = getPoller();
     expect(getPoller()).toBe(a);
     expect(globalThis.__ltpPoller).toBe(a);
+  });
+});
+
+describe('Poller (perturbations)', () => {
+  const disr = {
+    disruptions: [{ id: 'd1', applicationPeriods: [{ begin: '20261116T000000', end: '20261116T235959' }], severity: 'BLOQUANTE', title: 'T', message: 'm' }],
+    lines: [{ id: 'line:IDFM:C01371', impactedObjects: [{ type: 'line', id: 'x', disruptionIds: ['d1'] }] }],
+  };
+
+  it('live : un appel perturbations, persisté et compté, puis pas de nouvel appel avant 5 min', async () => {
+    let n = 0;
+    const fetchDisruptions = async () => {
+      n++;
+      return disr;
+    };
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions, dir, live: true });
+    await p.tick();
+    expect(n).toBe(1);
+    expect(p.disruptions().map((d) => d.id)).toEqual(['d1']);
+    expect(loadBudget(dir).calls).toEqual({ et: 1, disruptions: 1 });
+    expect(loadDisruptions(dir)!.disruptions).toHaveLength(1);
+
+    clock += 100 * S;
+    await p.tick();
+    expect(n).toBe(1);
+    clock += 200 * S;
+    await p.tick();
+    expect(n).toBe(2);
+
+    // Redémarrage : perturbations rechargées depuis le disque sans nouvel appel.
+    const p2 = new Poller({ now, fetchEt: okFetch, fetchDisruptions, dir, live: true });
+    await p2.tick();
+    expect(n).toBe(2);
+    expect(p2.disruptions()).toHaveLength(1);
+  });
+
+  it('live : les périodes terminées depuis le dernier appel sont retirées', async () => {
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions: async () => disr, dir, live: true });
+    await p.tick();
+    expect(p.disruptions()).toHaveLength(1);
+    clock = Date.parse('2026-11-16T23:30:00Z'); // 00:30 Paris le 17
+    expect(p.disruptions()).toEqual([]);
+  });
+
+  it('échec perturbations : le snapshot du timetable est conservé, failures du timetable inchangé', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchDisruptions = async () => {
+      throw new PrimError(429);
+    };
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions, dir, live: true });
+    await p.tick();
+    expect(log).toHaveBeenCalledOnce();
+    expect(p.snapshot()!.source).toBe('live');
+    expect(p.status().failures).toBe(0);
+    expect(loadBudget(dir).calls.disruptions).toBe(1);
+  });
+
+  it('replay : perturbations de la fixture sans aucun appel', async () => {
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions: async () => { calls++; return {}; }, dir, live: false });
+    await p.tick();
+    expect(calls).toBe(0);
+    expect(p.disruptions().length).toBeGreaterThan(0);
   });
 });

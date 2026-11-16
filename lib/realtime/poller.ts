@@ -2,13 +2,15 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Disruption, Journey, Network, Snapshot } from '../types';
+import { isActiveAt, parseDisruptions } from './disruptions';
 import { fetchDisruptions, fetchEstimatedTimetable } from './prim-client';
 import { buildRuns } from './runs';
 import { nextDelayMs } from './schedule';
 import { parseEstimatedTimetable } from './siri';
-import { callsToday, loadDisruptions, loadSnapshot, recordCall, saveSnapshot } from './store';
+import { callsToday, loadDisruptions, loadSnapshot, recordCall, saveDisruptions, saveSnapshot } from './store';
 
 const ET_INTERVAL_MS = 100_000;
+const DISRUPTIONS_INTERVAL_MS = 5 * 60_000;
 const DAILY_CAP = 900;
 const RECHECK_MS = 5 * 60_000; // cap reached or outside the service window
 const MIN_LOOP_MS = 1_000;
@@ -48,6 +50,9 @@ export class Poller {
   private lastAttempt: number | null = null; // last PRIM call, successful or not: drives the schedule
   private failures = 0;
   private cachedDisruptions: Disruption[] = [];
+  private disruptionsAttempt: number | null = null; // last disruptions call, successful or not
+  private disruptionsFailures = 0;
+  private replayDisruptions: Disruption[] | null = null;
   private replayJourneys: Journey[] | null = null;
   private started = false;
 
@@ -71,7 +76,9 @@ export class Poller {
         this.current = { fetchedAt: stored.fetchedAt, source: 'cache', runs: stored.runs };
         this.lastFetch = this.lastAttempt = stored.fetchedAt;
       }
-      this.cachedDisruptions = loadDisruptions(this.deps.dir)?.disruptions ?? [];
+      const storedDisr = loadDisruptions(this.deps.dir);
+      this.cachedDisruptions = storedDisr?.disruptions ?? [];
+      this.disruptionsAttempt = storedDisr?.fetchedAt ?? null;
     }
   }
 
@@ -94,15 +101,21 @@ export class Poller {
 
   /** One scheduling step: calls PRIM (or rebuilds the replay) if due. Returns the delay until the next step. */
   async tick(): Promise<number> {
-    return this.deps.live ? this.tickLive() : this.tickReplay();
+    if (!this.deps.live) return this.tickReplay();
+    const etDelay = await this.tickLive();
+    const disruptionsDelay = await this.tickDisruptions();
+    return Math.min(etDelay, disruptionsDelay);
   }
 
   snapshot(): Snapshot | null {
     return this.current;
   }
 
+  /** Disruptions known from the last poll; in live mode, periods that ended since then are dropped. */
   disruptions(): Disruption[] {
-    return this.cachedDisruptions;
+    if (!this.deps.live) return this.cachedDisruptions;
+    const now = this.deps.now();
+    return this.cachedDisruptions.filter((d) => isActiveAt(d, now));
   }
 
   status(): PollerStatus {
@@ -147,8 +160,43 @@ export class Poller {
     return this.schedule(now) ?? RECHECK_MS;
   }
 
+  /** Disruptions step: same window and daily cap as the timetable, every 5 min; a failure never affects the snapshot. */
+  private async tickDisruptions(): Promise<number> {
+    const now = this.deps.now();
+    const next = () =>
+      nextDelayMs(now, {
+        lastFetch: this.disruptionsAttempt,
+        failures: this.disruptionsFailures,
+        callsToday: callsToday(this.deps.dir, 'disruptions', now),
+        intervalMs: DISRUPTIONS_INTERVAL_MS,
+        cap: DAILY_CAP,
+      });
+    const delay = next();
+    if (delay === null) return RECHECK_MS;
+    if (delay > 0) return delay;
+
+    recordCall(this.deps.dir, 'disruptions', now);
+    this.disruptionsAttempt = now;
+    try {
+      const disruptions = parseDisruptions(await this.deps.fetchDisruptions(), now);
+      saveDisruptions(this.deps.dir, { fetchedAt: now, disruptions });
+      this.cachedDisruptions = disruptions;
+      this.disruptionsFailures = 0;
+    } catch (e) {
+      this.disruptionsFailures += 1;
+      console.error(`[poller] disruptions failed (failures=${this.disruptionsFailures})`, e);
+    }
+    return next() ?? RECHECK_MS;
+  }
+
   private tickReplay(): number {
     const now = this.deps.now();
+    if (!this.replayDisruptions) {
+      // Evaluated at the fixture's capture time so that its periods are active whenever the replay runs.
+      const raw = JSON.parse(readFileSync(path.join(process.cwd(), 'tests/fixtures/disruptions-sample.json'), 'utf8'));
+      this.replayDisruptions = parseDisruptions(raw, Date.parse(raw.lastUpdatedDate));
+      this.cachedDisruptions = this.replayDisruptions;
+    }
     if (!this.replayJourneys) {
       // Read once; every time is shifted once, at startup, so that the fixture's response time is "now".
       const raw = JSON.parse(readFileSync(path.join(process.cwd(), 'tests/fixtures/et-sample.json'), 'utf8'));
