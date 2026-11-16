@@ -1,0 +1,74 @@
+import { describe, it, expect } from 'vitest';
+import type { Network, VehicleRun } from '../lib/types';
+import { positionAt, createSmoother, type RunPosition } from '../lib/client/interpolate';
+
+const net = {
+  quays: {
+    A: { id: 'A', name: 'A', lon: 0, lat: 0, stationId: 'sA' },
+    B: { id: 'B', name: 'B', lon: 0, lat: 0.01, stationId: 'sB' },
+    X: { id: 'X', name: 'X', lon: 1, lat: 1, stationId: 'sX' },
+  },
+  segments: { 'A>B': { coords: [[0, 0], [0, 0.01]], seconds: 60 } },
+} as unknown as Network;
+
+const t0 = 1_000_000_000;
+const mk = (stops: VehicleRun['stops']): VehicleRun => ({
+  id: 'r', lineId: 'L', direction: 'd', destination: 'B', stops, hasPrevious: false, prevInferred: false,
+});
+
+describe('positionAt', () => {
+  const run = mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: null }]);
+  it('moving at mid-segment', () => {
+    const p = positionAt(run, net, t0 + 30_000)!;
+    expect(p.state).toBe('moving');
+    expect(p.segmentKey).toBe('A>B');
+    expect(p.fraction).toBeCloseTo(0.5, 6);
+    expect(p.coord[1]).toBeCloseTo(0.005, 6);
+    expect(p.nextQuay).toBe('B');
+    expect(p.nextTime).toBe(t0 + 60_000);
+  });
+  it('waiting before first departure', () => {
+    const p = positionAt(run, net, t0 - 10_000)!;
+    expect(p.state).toBe('waiting');
+    expect(p.coord).toEqual([0, 0]);
+  });
+  it('null after last arrival + 60 s', () => {
+    expect(positionAt(run, net, t0 + 60_000 + 61_000)).toBeNull();
+    expect(positionAt(run, net, t0 + 60_000 + 59_000)!.state).toBe('dwelling');
+  });
+  it('dwelling between arr and dep', () => {
+    const r = mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: t0 + 80_000 }]);
+    const p = positionAt(r, net, t0 + 70_000)!;
+    expect(p.state).toBe('dwelling');
+    expect(p.coord).toEqual([0, 0.01]);
+  });
+  it('null on missing segment or unknown quay', () => {
+    const r = mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'X', arr: t0 + 60_000, dep: null }]);
+    expect(positionAt(r, net, t0 + 30_000)).toBeNull();
+    const r2 = mk([{ quay: 'Z', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: null }]);
+    expect(positionAt(r2, net, t0 - 1000)).toBeNull();
+  });
+});
+
+describe('createSmoother', () => {
+  const p = (fraction: number, segmentKey: string | null = 'A>B'): RunPosition => ({
+    coord: [0, fraction], state: 'moving', segmentKey, fraction, nextQuay: 'B', nextTime: 0,
+  });
+  it('never goes backwards on the same segment', () => {
+    const s = createSmoother();
+    expect(s('r', p(0.5))!.fraction).toBe(0.5);
+    expect(s('r', p(0.45))!.fraction).toBe(0.5);
+    expect(s('r', p(0.6))!.fraction).toBe(0.6);
+    expect(s('r', p(0.1, 'B>C'))!.fraction).toBe(0.1);
+  });
+  it('accepts large backward jump (>0.5) and isolates runs', () => {
+    const s = createSmoother();
+    s('r', p(0.9));
+    expect(s('r', p(0.3))!.fraction).toBe(0.3);
+    s('q', p(0.8));
+    expect(s('r', p(0.35))!.fraction).toBe(0.35);
+  });
+  it('passes null through', () => {
+    expect(createSmoother()('r', null)).toBeNull();
+  });
+});
