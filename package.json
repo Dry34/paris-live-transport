@@ -1,0 +1,34 @@
+{
+  "name": "paris-live-transport",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "build:data": "tsx scripts/build-data.ts",
+    "fixture": "tsx scripts/make-fixture.ts"
+  },
+  "dependencies": {
+    "csv-parse": "^7.0.3",
+    "maplibre-gl": "^6.18.0",
+    "next": "15.5.29",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "yauzl": "^3.4.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/yauzl": "^3.4.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.29",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.1.0"
+  }
+}
