@@ -181,3 +181,19 @@ export function neighborGaps(
     behindMin: behind === null ? null : Math.round((behind - time) / 60_000),
   };
 }
+
+/** Next stops listed before the fold on the card. */
+const CARD_HEAD = 4;
+
+/** Card layout of the coming stops: the 4 next ones, the folded ones between them and the terminus, the terminus. */
+export function cardRows(stops: UpcomingStop[]): { head: UpcomingStop[]; hidden: UpcomingStop[]; terminus: UpcomingStop | null } {
+  if (stops.length === 0) return { head: [], hidden: [], terminus: null };
+  const terminus = stops[stops.length - 1];
+  const before = stops.slice(0, -1);
+  return { head: before.slice(0, CARD_HEAD), hidden: before.slice(CARD_HEAD), terminus };
+}
+
+/** "il y a N s" since the snapshot was fetched. */
+export function dataAgeText(fetchedAt: number, now: number): string {
+  return `il y a ${Math.max(0, Math.floor((now - fetchedAt) / 1000))} s`;
+}

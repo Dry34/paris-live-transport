@@ -64,10 +64,14 @@ export interface LiveMapProps {
   /** Map area covered by the side panel, kept clear when framing. */
   panelInset: { left: number; bottom: number };
   onStationClick: (stationId: string) => void;
+  /** Header of the train card clicked: focus that line. */
+  onOpenLine: (lineId: string) => void;
   onShownCountChange?: (count: number) => void;
 }
 
-interface SelectedView { run: VehicleRun; position: RunPosition; now: number }
+interface SelectedView { run: VehicleRun; runs: VehicleRun[]; fetchedAt: number; position: RunPosition; now: number }
+/** Train card width on desktop; narrower screens keep a 12 px margin on each side. */
+const POPUP_MAX_WIDTH = 'min(340px, calc(100vw - 24px))';
 
 function shapesData(network: Network, dark: boolean): FC {
   const features: GeoJSON.Feature[] = [];
@@ -113,7 +117,7 @@ function applyFocusStyle(m: MlMap, focus: string | null) {
   m.setLayerZoomRange('station-labels', focus ? 0 : STATION_LABELS_MINZOOM, 24);
 }
 
-export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onShownCountChange }: LiveMapProps) {
+export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onOpenLine, onShownCountChange }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const readyRef = useRef(false);
@@ -124,7 +128,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const framedRef = useRef<string | null>(null);
   const positionsRef = useRef(new Map<string, RunPosition>());
   const selectedRef = useRef<string | null>(null);
-  const callbacksRef = useRef({ onStationClick, onShownCountChange });
+  const callbacksRef = useRef({ onStationClick, onOpenLine, onShownCountChange });
   const popupRef = useRef<Popup | null>(null);
   const [mapLib, setMapLib] = useState<typeof import('maplibre-gl') | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -133,7 +137,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const [mapReady, setMapReady] = useState(false);
 
   snapshotRef.current = snapshot;
-  callbacksRef.current = { onStationClick, onShownCountChange };
+  callbacksRef.current = { onStationClick, onOpenLine, onShownCountChange };
   insetRef.current = panelInset;
   selectedRef.current = selectedId;
 
@@ -409,7 +413,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
     }
     if (readyRef.current) map.setFilter('vehicle-halo', ['==', ['get', 'id'], selectedId]);
     const node = document.createElement('div');
-    const popup = new mapLib.Popup({ closeOnClick: false, offset: 14, maxWidth: '280px', focusAfterOpen: false })
+    const popup = new mapLib.Popup({ closeOnClick: false, offset: 14, maxWidth: POPUP_MAX_WIDTH, focusAfterOpen: false })
       .setLngLat(pos.coord)
       .setDOMContent(node)
       .addTo(map);
@@ -433,14 +437,15 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         setSelectedView(null);
         return;
       }
-      const run = snapshotRef.current?.runs.find((r) => r.id === id);
+      const snap = snapshotRef.current;
+      const run = snap?.runs.find((r) => r.id === id);
       const position = positionsRef.current.get(id);
-      if (!run || !position) {
+      if (!snap || !run || !position) {
         setSelectedId(null);
         setSelectedView(null);
         return;
       }
-      setSelectedView({ run, position, now: Date.now() });
+      setSelectedView({ run, runs: snap.runs, fetchedAt: snap.fetchedAt, position, now: Date.now() });
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -448,7 +453,6 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   }, [selectedId]);
 
   const selectedLine = selectedView ? network.lines[selectedView.run.lineId] : null;
-  const nextQuay = selectedView?.position.nextQuay;
 
   return (
     <>
@@ -458,11 +462,14 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         selectedLine &&
         createPortal(
           <VehiclePopup
-            line={selectedLine}
-            destination={selectedView.run.destination}
+            key={selectedView.run.id}
+            network={network}
+            run={selectedView.run}
+            runs={selectedView.runs}
             position={selectedView.position}
-            nextStopName={nextQuay ? (network.quays[nextQuay]?.name ?? null) : null}
+            fetchedAt={selectedView.fetchedAt}
             now={selectedView.now}
+            onOpenLine={(lineId) => callbacksRef.current.onOpenLine(lineId)}
           />,
           popupNode,
         )}
