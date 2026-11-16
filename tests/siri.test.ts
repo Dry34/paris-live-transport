@@ -128,8 +128,19 @@ describe('delaySec par arrêt', () => {
   it('repli sur le départ', () => {
     expect(delayOf({ AimedDepartureTime: '2026-11-16T10:00:00Z', ExpectedDepartureTime: '2026-11-16T10:01:00Z' })).toBe(60);
   });
+  it('Aimed sans Expected → null', () => {
+    expect(delayOf({ AimedArrivalTime: '2026-11-16T10:00:00Z' })).toBeNull();
+  });
+  it('arrivée sans Aimed → repli sur le départ', () => {
+    expect(
+      delayOf({
+        ExpectedArrivalTime: '2026-11-16T10:02:05Z',
+        AimedDepartureTime: '2026-11-16T10:00:00Z',
+        ExpectedDepartureTime: '2026-11-16T10:01:00Z',
+      }),
+    ).toBe(60);
+  });
   it('seulement Expected → null', () => {
     expect(delayOf({ ExpectedArrivalTime: '2026-11-16T10:02:05Z' })).toBeNull();
   });
 });
-

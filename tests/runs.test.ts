@@ -258,4 +258,3 @@ describe('buildRuns delaySec', () => {
     expect(r.stops[1].delaySec).toBe(10);
   });
 });
-

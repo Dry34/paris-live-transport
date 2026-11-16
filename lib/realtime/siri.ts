@@ -41,6 +41,12 @@ function operatorOf(j: Raw): Journey['operator'] {
   return 'OTHER';
 }
 
+function delta(exp: unknown, aimed: unknown): number | null {
+  const e = time(exp);
+  const t = time(aimed);
+  return e !== null && t !== null ? Math.round((e - t) / 1000) : null;
+}
+
 function parseJourney(j: Raw): Journey | null {
   const lineId = /::(C\d+):/.exec(str(j.LineRef as Val))?.[1];
   if (!lineId || !isTargetLine(lineId)) return null;
@@ -51,11 +57,6 @@ function parseJourney(j: Raw): Journey | null {
     const a = time(c.ExpectedArrivalTime) ?? time(c.AimedArrivalTime);
     const d = time(c.ExpectedDepartureTime) ?? time(c.AimedDepartureTime);
     if (!quay || (a === null && d === null)) continue;
-    const delta = (exp: unknown, aimed: unknown): number | null => {
-      const e = time(exp);
-      const t = time(aimed);
-      return e !== null && t !== null ? Math.round((e - t) / 1000) : null;
-    };
     const delaySec =
       delta(c.ExpectedArrivalTime, c.AimedArrivalTime) ?? delta(c.ExpectedDepartureTime, c.AimedDepartureTime);
     calls.push({ quay, arr: a, dep: d, delaySec });
