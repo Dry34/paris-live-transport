@@ -160,6 +160,71 @@ describe('buildRuns', () => {
     expect(runs.map((r) => r.id)).toEqual([`${L}:Aller:B:${T + 30 * S}`, `${L}:Aller:D:${T + 60 * S}`]);
   });
 
+  it('terminus de départ : pas de station précédente inventée même si le quai est en milieu de pattern ailleurs', () => {
+    const n2 = miniNetwork();
+    // B est l'origine d'une mission partielle plus fréquente que la mission complète qui y passe
+    n2.patterns = [
+      { lineId: L, directionId: 0, quays: ['A', 'B', 'C', 'D'], trips: 10, headsign: 'D' },
+      { lineId: L, directionId: 0, quays: ['B', 'C', 'D'], trips: 100, headsign: 'D' },
+    ];
+    const r = buildRuns([journey('t', [['B', T + 5 * M], ['C', T + 7 * M]])], n2, null, T);
+    expect(r).toHaveLength(1);
+    expect(r[0].hasPrevious).toBe(false);
+    // missions passantes majoritaires : la station précédente est inférée
+    n2.patterns[0].trips = 1000;
+    const r2 = buildRuns([journey('t', [['B', T + 30 * S], ['C', T + 90 * S]])], n2, null, T);
+    expect(r2[0].stops[0].quay).toBe('A');
+    expect(r2[0].prevInferred).toBe(true);
+  });
+
+  it('morceau RATP (station précédente inférée + un arrêt) prolongeant une autre rame : fusionné', () => {
+    const runs = buildRuns(
+      [journey('j1', [['A', T - 40 * S], ['B', T + 30 * S]]), journey('j2', [['C', T + 30 * S + 20 * S + 60 * S]])],
+      net,
+      null,
+      T,
+    );
+    expect(runs).toHaveLength(1);
+    expect(runs[0].id).toBe('j1');
+    expect(runs[0].stops.map((s) => s.quay)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('morceau RATP doublon d’une rame qui passe déjà par la station inférée : jamais dessiné', () => {
+    const runs = buildRuns(
+      [journey('j1', [['A', T - 40 * S], ['B', T + 30 * S], ['C', T + 110 * S]]), journey('j2', [['C', T + 115 * S]])],
+      net,
+      null,
+      T,
+    );
+    expect(runs).toHaveLength(2);
+    expect(runs.find((r) => r.id === 'j2')!.hide).toBe('always');
+    expect(runs.find((r) => r.id === 'j1')!.hide).toBeUndefined();
+  });
+
+  it("au terminus, seule la rame qui part la première est dessinée à l'attente", () => {
+    const runs = buildRuns(
+      [journey('t2', [['A', T + 5 * M], ['B', T + 7 * M]]), journey('t1', [['A', T + 2 * M], ['B', T + 4 * M]])],
+      net,
+      null,
+      T,
+    );
+    expect(runs.find((r) => r.id === 't1')!.hide).toBeUndefined();
+    expect(runs.find((r) => r.id === 't2')!.hide).toBe('whileWaiting');
+  });
+
+  it("n'hérite pas d'une station précédente encore à venir (autre morceau d'un journey RATP)", () => {
+    const previous: VehicleRun[] = [
+      {
+        id: 'old', lineId: L, direction: 'Aller', destination: 'D', hasPrevious: false, prevInferred: false,
+        stops: [{ quay: 'A', arr: null, dep: T + 2 * M }, { quay: 'B', arr: T + 3 * M, dep: T + 3 * M }, { quay: 'C', arr: T + 4 * M, dep: T + 4 * M }],
+      },
+    ];
+    const runs = buildRuns([journey('n', [['C', T + 4 * M]])], net, previous, T);
+    // C est apparié à « old » (index 2), mais B est encore à venir : on infère au lieu d'hériter
+    expect(runs[0].prevInferred).toBe(true);
+    expect(runs[0].stops[0].dep).toBe(T + 4 * M - 60_000);
+  });
+
   it('ref vide → id composite', () => {
     const runs = buildRuns([journey('', [['B', T + 30 * S]])], net, null, T);
     expect(runs[0].id).toBe(`${L}:Aller:B:${T + 30 * S}`);

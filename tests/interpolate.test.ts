@@ -50,6 +50,23 @@ describe('positionAt', () => {
     expect(p.state).toBe('dwelling');
     expect(p.coord).toEqual([0, 0.01]);
   });
+  it('terminus (no previous station): drawn waiting only within 10 min of departure', () => {
+    expect(positionAt(run, net, t0 - 10 * 60_000)!.state).toBe('waiting');
+    expect(positionAt(run, net, t0 - 10 * 60_000 - 1)).toBeNull();
+  });
+  it('previous station (inferred or real): drawn waiting only within 60 s of leaving it', () => {
+    const inferred = { ...run, hasPrevious: true, prevInferred: true };
+    expect(positionAt(inferred, net, t0 - 60_000)!.state).toBe('waiting');
+    expect(positionAt(inferred, net, t0 - 61_000)).toBeNull();
+    const real = { ...run, hasPrevious: true, prevInferred: false };
+    expect(positionAt(real, net, t0 - 61_000)).toBeNull();
+    expect(positionAt(inferred, net, t0 + 30_000)!.state).toBe('moving');
+  });
+  it("hide: 'always' is never drawn, 'whileWaiting' only once it has left", () => {
+    expect(positionAt({ ...run, hide: 'always' }, net, t0 + 30_000)).toBeNull();
+    expect(positionAt({ ...run, hide: 'whileWaiting' }, net, t0 - 10_000)).toBeNull();
+    expect(positionAt({ ...run, hide: 'whileWaiting' }, net, t0 + 30_000)!.state).toBe('moving');
+  });
   it('null on missing segment or unknown quay', () => {
     const r = mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'X', arr: t0 + 60_000, dep: null }]);
     expect(positionAt(r, net, t0 + 30_000)).toBeNull();

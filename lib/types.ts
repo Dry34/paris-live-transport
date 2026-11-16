@@ -24,6 +24,9 @@ export interface VehicleRun {
   id: string; lineId: string; direction: string; destination: string;
   stops: RunStop[];                  // stops[0] = station précédente si connue
   hasPrevious: boolean; prevInferred: boolean;
+  // Not drawn on the map ('always': duplicate of another run; 'whileWaiting': another train waits first
+  // at the same terminus quay). The run's real calls still feed the departure boards.
+  hide?: 'always' | 'whileWaiting';
 }
 export interface Snapshot { fetchedAt: number; source: 'live' | 'replay' | 'cache'; runs: VehicleRun[] }
 export interface Departure { lineId: string; destination: string; direction: string; time: number; runId: string }

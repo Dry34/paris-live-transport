@@ -11,13 +11,20 @@ export type RunPosition = {
 };
 
 const GRACE_AFTER_END_MS = 60_000;
+/**
+ * A train waiting at its previous station is only drawn this long before it is due to leave: an inferred
+ * previous station is a guess, and the train is really still several stations away.
+ */
+export const PREVIOUS_WAIT_MS = 60_000;
+/** A train waiting at its first stop (terminus, no previous station) is only drawn this long before departure. */
+export const TERMINUS_WAIT_MS = 10 * 60_000;
 
 const arrOf = (s: RunStop): number | null => s.arr ?? s.dep;
 const depOf = (s: RunStop): number | null => s.dep ?? s.arr;
 
 export function positionAt(run: VehicleRun, network: Network, now: number): RunPosition | null {
   const { stops } = run;
-  if (stops.length === 0) return null;
+  if (stops.length === 0 || run.hide === 'always') return null;
 
   const atQuay = (i: number, state: 'dwelling' | 'waiting', nextTime: number | null): RunPosition | null => {
     const q = network.quays[stops[i].quay];
@@ -27,7 +34,14 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
 
   const firstDep = depOf(stops[0]);
   if (firstDep === null) return null;
-  if (now < firstDep) return atQuay(0, 'waiting', firstDep);
+  if (now < firstDep) {
+    // Hide rather than park a train for a long time where it may not be: an inferred previous station is
+    // a guess (the train is really several stations away), and SIRI lists terminus departures hours ahead.
+    if (run.hide === 'whileWaiting') return null;
+    if (run.hasPrevious && firstDep - now > PREVIOUS_WAIT_MS) return null;
+    if (!run.hasPrevious && firstDep - now > TERMINUS_WAIT_MS) return null;
+    return atQuay(0, 'waiting', firstDep);
+  }
 
   for (let i = 0; i < stops.length; i++) {
     const arr = arrOf(stops[i]);

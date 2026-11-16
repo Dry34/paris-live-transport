@@ -3,6 +3,10 @@ import type { Journey, Network, Pattern, RunStop, VehicleRun } from '../types';
 
 const MATCH_WINDOW_MS = 120_000;
 const FUTURE_LIMIT_MS = 30 * 60_000;
+/** A real call of another run this close to an inferred departure is the same physical train. */
+const DUPLICATE_WINDOW_MS = 90_000;
+/** An inherited previous stop due later than this is not behind the train. */
+const INHERIT_MARGIN_MS = 60_000;
 
 const at = (s: { arr: number | null; dep: number | null }): number => (s.arr ?? s.dep)!;
 
@@ -85,6 +89,26 @@ function isTerminus(quay: string, lineId: string, net: Network): boolean {
 }
 
 /**
+ * True when the journey starts at a pattern's first quay and that pattern continues to the journey's
+ * second call (any next quay for a single-call journey): the train starts here, so it gets no inferred
+ * previous station. When the quay is also mid-pattern towards the same next quay (short-turn origin on a
+ * through line), the side with the most GTFS trips wins.
+ */
+function startsAtTerminus(jr: Journey, net: Network): boolean {
+  const [c0, c1] = jr.calls;
+  let origin = 0;
+  let through = 0;
+  for (const p of patternsOf(net, jr.lineId)) {
+    p.quays.forEach((q, i) => {
+      if (q !== c0.quay || (c1 && p.quays[i + 1] !== c1.quay)) return;
+      if (i === 0) origin += p.trips;
+      else through += p.trips;
+    });
+  }
+  return origin > 0 && origin >= through;
+}
+
+/**
  * Splits a journey wherever two consecutive calls are not a network segment. RATP SIRI journeys often
  * group passages of several trains (non-consecutive stations, times out of line order); each contiguous
  * piece becomes its own run so that every run only travels along real segments. Piece k > 0 gets ref
@@ -118,7 +142,12 @@ export function buildRuns(journeys: Journey[], network: Network, previous: Vehic
     if (at(c0) > now + FUTURE_LIMIT_MS && !isTerminus(c0.quay, jr.lineId, network)) return;
 
     const m = matches[i];
-    const prev = (m && inheritedPrevious(m)) ?? inferredPrevious(jr, network);
+    // An inherited stop must really be behind the train: one still due later belongs to another piece
+    // of a split RATP journey (or a mis-match), so it is not a previous station.
+    const candidate = m && inheritedPrevious(m);
+    const inherited = candidate && candidate.stop && at(candidate.stop) - now <= INHERIT_MARGIN_MS ? candidate : null;
+    const prev: Previous =
+      inherited ?? (startsAtTerminus(jr, network) ? { stop: null, inferred: false } : inferredPrevious(jr, network));
     if (prev === 'reject') return;
     if (prev.stop && !network.segments[`${prev.stop.quay}>${c0.quay}`]) return;
 
@@ -143,5 +172,58 @@ export function buildRuns(journeys: Journey[], network: Network, previous: Vehic
       prevInferred: prev.inferred,
     });
   });
-  return runs;
+  return mergeAndHide(runs);
+}
+
+/**
+ * Removes the duplicates created by split RATP pieces, then flags runs that must not be drawn although
+ * their calls are real.
+ * - A run made of an inferred previous station Y plus a single call Z is the same train as another run of
+ *   the same line and direction with a real call at Y within ±90 s of the inferred departure. When that
+ *   call is the other run's last stop, Z is appended to it (one train continuing Y→Z) and the piece is
+ *   dropped; otherwise the piece is flagged 'always' (never drawn, its call still feeds departures).
+ * - Among runs without previous station waiting at the same quay, only the earliest departure is drawn
+ *   while waiting (one train per platform); the others appear once they leave.
+ */
+function mergeAndHide(runs: VehicleRun[]): VehicleRun[] {
+  const keyOf = (r: VehicleRun, quay: string) => `${r.lineId}|${r.direction}|${quay}`;
+  const realCalls = new Map<string, { run: VehicleRun; k: number }[]>();
+  const addCall = (r: VehicleRun, k: number) => {
+    const key = keyOf(r, r.stops[k].quay);
+    realCalls.set(key, [...(realCalls.get(key) ?? []), { run: r, k }]);
+  };
+  for (const r of runs) r.stops.forEach((_, k) => (k > 0 || !r.prevInferred) && addCall(r, k));
+
+  const removed = new Set<VehicleRun>();
+  const pieces = runs.filter((r) => r.prevInferred && r.stops.length === 2).sort((a, b) => at(a.stops[0]) - at(b.stops[0]));
+  for (const r of pieces) {
+    const t = at(r.stops[0]);
+    const twins = (realCalls.get(keyOf(r, r.stops[0].quay)) ?? [])
+      .filter((c) => c.run !== r && !removed.has(c.run) && c.run.hide !== 'always' && Math.abs(at(c.run.stops[c.k]) - t) <= DUPLICATE_WINDOW_MS)
+      .sort((a, b) => Math.abs(at(a.run.stops[a.k]) - t) - Math.abs(at(b.run.stops[b.k]) - t));
+    const twin = twins[0];
+    if (!twin) continue;
+    const y = twin.run.stops[twin.k];
+    const z = r.stops[1];
+    if (twin.k === twin.run.stops.length - 1 && at(z) >= (y.dep ?? y.arr)!) {
+      twin.run.stops.push({ ...z });
+      addCall(twin.run, twin.run.stops.length - 1);
+      removed.add(r);
+    } else {
+      r.hide = 'always';
+    }
+  }
+  const kept = runs.filter((r) => !removed.has(r));
+
+  const first = new Map<string, VehicleRun>();
+  for (const r of kept) {
+    if (r.hasPrevious || r.hide) continue;
+    const key = keyOf(r, r.stops[0].quay);
+    const cur = first.get(key);
+    if (!cur || at(r.stops[0]) < at(cur.stops[0])) first.set(key, r);
+  }
+  for (const r of kept) {
+    if (!r.hasPrevious && !r.hide && first.get(keyOf(r, r.stops[0].quay)) !== r) r.hide = 'whileWaiting';
+  }
+  return kept;
 }

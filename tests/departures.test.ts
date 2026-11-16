@@ -42,6 +42,29 @@ describe('departuresForStation', () => {
     ]);
   });
 
+  it("ignore stops[0] d'une rame avec station précédente (quittée ou inférée)", () => {
+    const r: VehicleRun = { ...run('inf', T + 5 * M), prevInferred: true };
+    r.stops[0] = { quay: 'A', arr: null, dep: T + 4 * M };
+    const out = departuresForStation({ fetchedAt: T, source: 'replay', runs: [r] }, net, 'S1', T);
+    expect(out).toEqual({});
+    // sans station précédente, le premier arrêt est un vrai départ
+    const t: VehicleRun = { ...r, hasPrevious: false, prevInferred: false };
+    expect(departuresForStation({ fetchedAt: T, source: 'replay', runs: [t] }, net, 'S1', T)['C01371|Aller']).toHaveLength(1);
+  });
+
+  it("ignore l'arrivée au terminus (dernier arrêt sans départ), garde un dernier arrêt avec départ", () => {
+    const r = run('r', T + M); // C : dep null
+    expect(departuresForStation({ fetchedAt: T, source: 'replay', runs: [r] }, net, 'S3', T)).toEqual({});
+    const withDep: VehicleRun = { ...r, stops: [...r.stops.slice(0, 2), { quay: 'C', arr: T + 3 * M, dep: T + 3 * M }] };
+    expect(departuresForStation({ fetchedAt: T, source: 'replay', runs: [withDep] }, net, 'S3', T)['C01371|Aller']).toHaveLength(1);
+  });
+
+  it('fusionne deux passages à moins de 30 s sur la même ligne et direction', () => {
+    const runs = [run('a', T + M), run('b', T + M + 29_000), run('c', T + M + 30_000 + 29_000)];
+    const out = departuresForStation({ fetchedAt: T, source: 'replay', runs }, net, 'S2', T);
+    expect(out['C01371|Aller'].map((d) => d.runId)).toEqual(['a', 'c']);
+  });
+
   it('limite le nombre par clé et renvoie {} pour une station inconnue', () => {
     const runs = [1, 2, 3, 4, 5, 6].map((i) => run(`r${i}`, T + i * M));
     const out = departuresForStation({ fetchedAt: T, source: 'replay', runs }, net, 'S2', T);

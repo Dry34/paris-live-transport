@@ -5,18 +5,27 @@ import { isTargetLine } from '../lib/lines';
 
 const MAX_JOURNEYS_PER_LINE = 6;
 
-function lineIdOf(journey: any): string | null {
+type RawJourney = { LineRef?: { value?: unknown } } & Record<string, unknown>;
+interface RawResponse {
+  Siri: {
+    ServiceDelivery: {
+      EstimatedTimetableDelivery?: { EstimatedJourneyVersionFrame?: { EstimatedVehicleJourney?: RawJourney[] }[] }[];
+    };
+  };
+}
+
+function lineIdOf(journey: RawJourney): string | null {
   const ref: unknown = journey?.LineRef?.value;
   if (typeof ref !== 'string') return null;
   return /^STIF:Line::([^:]+):$/.exec(ref)?.[1] ?? null;
 }
 
-export function reduceResponse(raw: any): any {
+export function reduceResponse(raw: RawResponse): RawResponse {
   const perLine = new Map<string, number>();
   const delivery = raw.Siri.ServiceDelivery;
   for (const d of delivery.EstimatedTimetableDelivery ?? []) {
     for (const frame of d.EstimatedJourneyVersionFrame ?? []) {
-      frame.EstimatedVehicleJourney = (frame.EstimatedVehicleJourney ?? []).filter((j: any) => {
+      frame.EstimatedVehicleJourney = (frame.EstimatedVehicleJourney ?? []).filter((j) => {
         const id = lineIdOf(j);
         if (!id || !isTargetLine(id)) return false;
         const n = perLine.get(id) ?? 0;
