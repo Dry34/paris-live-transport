@@ -60,6 +60,11 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
   return null;
 }
 
+/** A small step back in the same section (a re-estimate), as opposed to a jump to a new section. */
+export function isBackwardJitter(prevFraction: number, fraction: number): boolean {
+  return fraction < prevFraction && prevFraction - fraction <= 0.5;
+}
+
 export function createSmoother(): (runId: string, p: RunPosition | null) => RunPosition | null {
   const last = new Map<string, RunPosition>();
   return (runId, p) => {
@@ -72,8 +77,7 @@ export function createSmoother(): (runId: string, p: RunPosition | null) => RunP
       prev &&
       prev.segmentKey !== null &&
       prev.segmentKey === p.segmentKey &&
-      p.fraction < prev.fraction &&
-      prev.fraction - p.fraction <= 0.5
+      isBackwardJitter(prev.fraction, p.fraction)
     ) {
       return prev;
     }

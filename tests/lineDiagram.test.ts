@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Network, Pattern, VehicleRun } from '../lib/types';
-import { diagramBranches, placeRunsOnDiagram } from '../lib/client/lineDiagram';
+import { createDiagramSmoother, diagramBranches, placeRunsOnDiagram } from '../lib/client/lineDiagram';
 import { lineSlug, resolveLineId } from '../lib/lineSlug';
 
 const quay = (id: string, lat: number) => ({ id, name: id, lon: 0, lat, stationId: `S${id}` });
@@ -56,6 +56,13 @@ describe('placeRunsOnDiagram', () => {
     const res = placeRunsOnDiagram(branch, [at, off], net, t0 + 30_000);
     expect(res).toEqual([{ runId: 'r2', afterIndex: 1, fraction: 0 }]);
   });
+  it('ignores a run dwelling at B heading the other way (c>b>a), and a run ending at B coming from the wrong side', () => {
+    const back = run('r4', [{ quay: 'c', arr: null, dep: t0 - 60_000 }, { quay: 'b', arr: t0, dep: t0 + 60_000 }, { quay: 'a', arr: t0 + 120_000, dep: null }]);
+    const endsB = run('r5', [{ quay: 'c', arr: null, dep: t0 - 60_000 }, { quay: 'b', arr: t0, dep: null }]);
+    expect(placeRunsOnDiagram(branch, [back, endsB], net, t0 + 30_000)).toEqual([]);
+    const endsOk = run('r6', [{ quay: 'a', arr: null, dep: t0 - 60_000 }, { quay: 'b', arr: t0, dep: null }]);
+    expect(placeRunsOnDiagram(branch, [endsOk], net, t0 + 30_000)).toEqual([{ runId: 'r6', afterIndex: 1, fraction: 0 }]);
+  });
 });
 
 describe('line slugs', () => {
@@ -73,5 +80,16 @@ describe('line slugs', () => {
     expect(resolveLineId(net, 'c01371')).toBeNull();
     expect(resolveLineId(net, 'C3')).toBe('C3');
     expect(resolveLineId(net, 'zzz')).toBeNull();
+  });
+});
+
+describe('createDiagramSmoother', () => {
+  it('holds a train in place on a small step back in the same section, but not across sections or big jumps', () => {
+    const sm = createDiagramSmoother();
+    sm([{ runId: 'r', afterIndex: 1, fraction: 0.6 }]);
+    expect(sm([{ runId: 'r', afterIndex: 1, fraction: 0.5 }])[0].fraction).toBe(0.6);
+    expect(sm([{ runId: 'r', afterIndex: 2, fraction: 0.1 }])[0]).toEqual({ runId: 'r', afterIndex: 2, fraction: 0.1 });
+    sm([{ runId: 'r', afterIndex: 2, fraction: 0.9 }]);
+    expect(sm([{ runId: 'r', afterIndex: 2, fraction: 0.2 }])[0].fraction).toBe(0.2);
   });
 });

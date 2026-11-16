@@ -3,7 +3,7 @@
 // (same 30 fps requestAnimationFrame loop as the map, steady 1 s tick with reduced motion).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Network, Snapshot } from '@/lib/types';
-import { placeRunsOnDiagram, type DiagramBranch } from '@/lib/client/lineDiagram';
+import { createDiagramSmoother, placeRunsOnDiagram, type DiagramBranch } from '@/lib/client/lineDiagram';
 
 const FRAME_MS = 1000 / 30;
 const ROW = 44;
@@ -46,13 +46,8 @@ export function LineDiagram({ network, lineId, branch, title, snapshot, selected
   const now = useAnimatedNow();
   const runs = useMemo(() => (snapshot?.runs ?? []).filter((r) => r.lineId === lineId), [snapshot, lineId]);
   // A new snapshot may re-estimate a run a few seconds back: never move a train backwards within a section.
-  const lastSeen = useRef(new Map<string, { afterIndex: number; fraction: number }>());
-  const placed = placeRunsOnDiagram(branch, runs, network, now).map((p) => {
-    const prev = lastSeen.current.get(p.runId);
-    if (prev && prev.afterIndex === p.afterIndex && p.fraction < prev.fraction && prev.fraction - p.fraction <= 0.5) return { ...p, fraction: prev.fraction };
-    return p;
-  });
-  lastSeen.current = new Map(placed.map((p) => [p.runId, p]));
+  const smooth = useRef(createDiagramSmoother()).current;
+  const placed = smooth(placeRunsOnDiagram(branch, runs, network, now));
   const last = branch.stations.length - 1;
 
   return (
