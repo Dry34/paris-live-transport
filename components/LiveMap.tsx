@@ -9,6 +9,7 @@ import type { Network, Snapshot, VehicleRun } from '@/lib/types';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
 import { fadeColor, lineBounds } from '@/lib/client/lineFocus';
 import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
+import { panIntoView, popupPadding } from '@/lib/client/popupView';
 import { VehiclePopup } from './VehiclePopup';
 
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
@@ -72,6 +73,9 @@ export interface LiveMapProps {
 interface SelectedView { run: VehicleRun; runs: VehicleRun[]; fetchedAt: number; position: RunPosition; now: number }
 /** Train card width on desktop; narrower screens keep a 12 px margin on each side. */
 const POPUP_MAX_WIDTH = 'min(340px, calc(100vw - 24px))';
+/** Gap kept between the train card and the map edges or the side panel. */
+const POPUP_MARGIN = 12;
+const POPUP_PAN_MS = 300;
 
 function shapesData(network: Network, dark: boolean): FC {
   const features: GeoJSON.Feature[] = [];
@@ -413,20 +417,65 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
     }
     if (readyRef.current) map.setFilter('vehicle-halo', ['==', ['get', 'id'], selectedId]);
     const node = document.createElement('div');
-    const popup = new mapLib.Popup({ closeOnClick: false, offset: 14, maxWidth: POPUP_MAX_WIDTH, focusAfterOpen: false })
+    const popup = new mapLib.Popup({
+      closeOnClick: false,
+      offset: 14,
+      maxWidth: POPUP_MAX_WIDTH,
+      focusAfterOpen: false,
+      padding: popupPadding(insetRef.current, POPUP_MARGIN),
+    })
       .setLngLat(pos.coord)
       .setDOMContent(node)
       .addTo(map);
     popup.on('close', () => setSelectedId((id) => (id === selectedId ? null : id)));
     popupRef.current = popup;
     setPopupNode(node);
+
+    // Keep the card inside the free map area (off the side panel, above the bottom sheet) when it opens, grows (fold
+    // opened) or after a programmatic camera move (line framed from the header). A drag or zoom by the user disarms
+    // it until the next click inside the card, so the map never fights the user.
+    let armed = true;
+    let ownPan = false;
+    const el = popup.getElement();
+    const keepInView = () => {
+      if (!armed || map.isMoving()) return;
+      const c = map.getContainer().getBoundingClientRect();
+      const pad = popupPadding(insetRef.current, POPUP_MARGIN);
+      const area = { left: c.left + pad.left, top: c.top + pad.top, right: c.right - pad.right, bottom: c.bottom - pad.bottom };
+      const [x, y] = panIntoView(el.getBoundingClientRect(), area);
+      if (Math.abs(x) < 1 && Math.abs(y) < 1) return;
+      ownPan = true;
+      map.panBy([x, y], { duration: POPUP_PAN_MS });
+    };
+    const arm = () => (armed = true);
+    const onMoveStart = (e: { originalEvent?: unknown }) => {
+      if (e.originalEvent) armed = false;
+    };
+    const onMoveEnd = () => {
+      if (ownPan) ownPan = false;
+      else keepInView();
+    };
+    const resizes = new ResizeObserver(keepInView);
+    resizes.observe(el);
+    el.addEventListener('click', arm);
+    map.on('movestart', onMoveStart);
+    map.on('moveend', onMoveEnd);
     return () => {
+      resizes.disconnect();
+      el.removeEventListener('click', arm);
+      map.off('movestart', onMoveStart);
+      map.off('moveend', onMoveEnd);
       popupRef.current = null;
       popup.remove();
       setPopupNode(null);
       if (readyRef.current && mapRef.current) mapRef.current.setFilter('vehicle-halo', ['==', ['get', 'id'], '']);
     };
   }, [selectedId, mapLib]);
+
+  // The panel's size changes (sheet dragged, window resized): the open card keeps avoiding it.
+  useEffect(() => {
+    popupRef.current?.setPadding(popupPadding(panelInset, POPUP_MARGIN));
+  }, [panelInset]);
 
   // Popup text and the shown-trains counter refresh once per second (not per frame).
   useEffect(() => {

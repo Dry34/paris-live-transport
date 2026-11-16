@@ -197,3 +197,8 @@ export function cardRows(stops: UpcomingStop[]): { head: UpcomingStop[]; hidden:
 export function dataAgeText(fetchedAt: number, now: number): string {
   return `il y a ${Math.max(0, Math.floor((now - fetchedAt) / 1000))} s`;
 }
+
+/** Gap to a neighbouring train in whole minutes ("4′"); under a minute reads "<1′" rather than "0′". */
+export function gapText(min: number): string {
+  return min < 1 ? '<1′' : `${min}′`;
+}

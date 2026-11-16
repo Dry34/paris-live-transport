@@ -11,6 +11,7 @@ import {
   estimatedSpeedKmh,
   formatDelay,
   formatEta,
+  gapText,
   neighborGaps,
   upcomingStops,
   type UpcomingStop,
@@ -27,6 +28,9 @@ export interface VehiclePopupProps {
   now: number;
   onOpenLine: (lineId: string) => void;
 }
+
+/** Screen-reader wording of a gap, matching gapText's "<1" for gaps under a minute. */
+const gapMinutes = (min: number) => (min < 1 ? 'moins d’une min' : `${min} min`);
 
 function StopRow({ stop, network, now, major, next }: { stop: UpcomingStop; network: Network; now: number; major: boolean; next: boolean }) {
   return (
@@ -101,15 +105,15 @@ export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onO
           <p className="vc-gaps">
             {aheadMin !== null && (
               <span>
-                <span aria-hidden="true">‹ {aheadMin}′</span>
-                <span className="sr-only">Rame devant : {aheadMin} min.</span>
+                <span aria-hidden="true">‹ {gapText(aheadMin)}</span>
+                <span className="sr-only">Rame devant : {gapMinutes(aheadMin)}.</span>
               </span>
             )}
             <LineBadge line={line} size="sm" />
             {behindMin !== null && (
               <span>
-                <span aria-hidden="true">{behindMin}′ ›</span>
-                <span className="sr-only">Rame derrière : {behindMin} min.</span>
+                <span aria-hidden="true">{gapText(behindMin)} ›</span>
+                <span className="sr-only">Rame derrière : {gapMinutes(behindMin)}.</span>
               </span>
             )}
           </p>
