@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import type { Disruption, Mode, Network, Snapshot } from '@/lib/types';
+import Link from 'next/link';
+import { lineSlug } from '@/lib/lineSlug';
 import { LineBadge, MODE_LABELS, lineName } from './LineBadge';
 
 const MODES: Mode[] = ['metro', 'rer', 'tram', 'transilien'];
@@ -83,8 +85,8 @@ export function SidePanel({ network, snapshot, disruptions, hiddenLines, shownCo
                 {modeLines.map((l) => {
                   const shown = !hiddenLines.has(l.id);
                   return (
+                    <span key={l.id} className="line-cell">
                     <button
-                      key={l.id}
                       type="button"
                       className="line-toggle"
                       aria-pressed={shown}
@@ -93,6 +95,10 @@ export function SidePanel({ network, snapshot, disruptions, hiddenLines, shownCo
                     >
                       <LineBadge line={l} />
                     </button>
+                      <Link href={`/lignes/${lineSlug(l)}`} className="line-link" aria-label={`Page de la ligne : ${lineName(l)}`} title={`Page ${lineName(l)}`}>
+                        <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3 9l6-6M4 3h5v5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      </Link>
+                    </span>
                   );
                 })}
               </div>
