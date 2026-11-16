@@ -131,3 +131,42 @@ describe('positionAt bearing', () => {
     expect(positionAt(lone, east, t0 - 5_000)!.bearing).toBeNull();
   });
 });
+
+describe('positionAt implied speed cap (hide instead of teleporting)', () => {
+  const M_PER_DEG = 111_195;
+  const netWith = (lengthM: number) => ({
+    lines: {
+      M: { id: 'M', shortName: 'M', mode: 'metro', color: '', textColor: '', longName: '' },
+      T: { id: 'T', shortName: 'T', mode: 'tram', color: '', textColor: '', longName: '' },
+      R: { id: 'R', shortName: 'R', mode: 'rer', color: '', textColor: '', longName: '' },
+    },
+    quays: {
+      A: { id: 'A', name: 'A', lon: 0, lat: 0, stationId: 'sA' },
+      B: { id: 'B', name: 'B', lon: 0, lat: lengthM / M_PER_DEG, stationId: 'sB' },
+    },
+    segments: { 'A>B': { coords: [[0, 0], [0, lengthM / M_PER_DEG]], seconds: 60 } },
+  }) as unknown as Network;
+  const runOn = (lineId: string): VehicleRun => ({
+    ...mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: null }]),
+    lineId,
+  });
+  it('metro: 10 km in 60 s (600 km/h) is hidden', () => {
+    expect(positionAt(runOn('M'), netWith(10_000), t0 + 30_000)).toBeNull();
+  });
+  it('metro: 1 km in 60 s (60 km/h) is drawn', () => {
+    expect(positionAt(runOn('M'), netWith(1_000), t0 + 30_000)!.state).toBe('moving');
+  });
+  it('tram: 1.6 km in 60 s (96 km/h) is hidden', () => {
+    expect(positionAt(runOn('T'), netWith(1_600), t0 + 30_000)).toBeNull();
+  });
+  it('rer: 2.5 km in 60 s (150 km/h) is drawn', () => {
+    expect(positionAt(runOn('R'), netWith(2_500), t0 + 30_000)!.state).toBe('moving');
+  });
+  it('unknown line: no cap', () => {
+    expect(positionAt(runOn('?'), netWith(10_000), t0 + 30_000)!.state).toBe('moving');
+  });
+  it('the cap only applies while moving: the same train dwelling at B is drawn', () => {
+    const r = { ...runOn('M'), stops: [{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: t0 + 90_000 }] };
+    expect(positionAt(r, netWith(10_000), t0 + 70_000)!.state).toBe('dwelling');
+  });
+});

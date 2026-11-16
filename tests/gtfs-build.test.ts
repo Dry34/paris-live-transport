@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parse } from 'csv-parse/sync';
 import type { LngLat, Pattern, Quay } from '../lib/types';
-import { distanceM } from '../lib/geo';
+import { cumulativeLengths, distanceM } from '../lib/geo';
 import {
   buildPatterns,
   buildSegments,
@@ -100,6 +100,34 @@ describe('buildSegments', () => {
     expect(distanceM(c[0], [quays.A.lon, quays.A.lat])).toBeLessThan(1);
     expect(distanceM(c[c.length - 1], [quays.B.lon, quays.B.lat])).toBeLessThan(1);
     expect(c.length).toBe(2); // A→B along the last leg only, not backwards around the loop
+  });
+  it('picks the shortest forward slice when the shape passes A several times (zigzag / terminal loop)', () => {
+    // three parallel legs ~55 m apart: east on 48.85, back west on 48.8505, east again on 48.851.
+    // A's global nearest point is on the return leg; projecting from there runs the long way to leg 3.
+    const zigzag: LngLat[] = [
+      [2.30, 48.85], [2.3075, 48.85], [2.32, 48.85],
+      [2.32, 48.8505], [2.30, 48.8505],
+      [2.30, 48.851], [2.32, 48.851],
+    ];
+    const q: Record<string, Quay> = {
+      A: { id: 'A', name: 'A', lon: 2.305, lat: 48.8504, stationId: 'A' },
+      B: { id: 'B', name: 'B', lon: 2.31, lat: 48.8501, stationId: 'B' },
+    };
+    const p: Pattern = { lineId: 'C01371', directionId: 0, quays: ['A', 'B'], trips: 5, headsign: 'B' };
+    const c = buildSegments([p], q, new Map([[p, zigzag]]), new Map())['A>B'].coords;
+    const straight = distanceM([q.A.lon, q.A.lat], [q.B.lon, q.B.lat]);
+    const len = cumulativeLengths(c).at(-1)!;
+    expect(c.length).toBeGreaterThan(2); // follows the shape (through the 2.3075 vertex), not a fallback
+    expect(len).toBeGreaterThan(0.8 * straight);
+    expect(len).toBeLessThan(1.2 * straight);
+    expect(distanceM(c[0], [2.305, 48.85])).toBeLessThan(1);
+  });
+  it('falls back to a straight line when even the shortest slice is implausibly long', () => {
+    // the shape leaves A, makes a 3 km detour north and only then reaches B (735 m from A)
+    const detour: LngLat[] = [[2.30, 48.85], [2.30, 48.88], [2.31, 48.88], [2.31, 48.85]];
+    const p: Pattern = { lineId: 'C01371', directionId: 0, quays: ['A', 'B'], trips: 5, headsign: 'B' };
+    const seg = buildSegments([p], quays, new Map([[p, detour]]), new Map());
+    expect(seg['A>B'].coords).toHaveLength(2);
   });
 });
 

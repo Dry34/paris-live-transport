@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { LngLat } from '../lib/types';
-import { distanceM, cumulativeLengths, projectOnLine, sliceLine, pointAtFraction } from '../lib/geo';
+import { distanceM, cumulativeLengths, nearPasses, projectOnLine, sliceLine, pointAtFraction } from '../lib/geo';
 
 const L: LngLat[] = [[0, 0], [0, 0.01], [0.01, 0.01]];
 
@@ -63,5 +63,32 @@ describe('bearing', () => {
     expect(bearingAtFraction([], 0.5)).toBeNull();
     expect(bearingAtFraction([[1, 1]], 0.5)).toBeNull();
     expect(bearingAtFraction([[1, 1], [1, 1]], 0.5)).toBeNull();
+  });
+});
+
+describe('nearPasses', () => {
+  // out-and-back: north along lon 0, then back south along lon 0.0005 (~55 m east)
+  const back: LngLat[] = [[0, 0], [0, 0.01], [0.0005, 0.01], [0.0005, 0]];
+  it('returns one local minimum per pass, in order along the line', () => {
+    const passes = nearPasses(back, [0.0001, 0.005], 150);
+    expect(passes).toHaveLength(2);
+    expect(passes[0].along).toBeLessThan(passes[1].along);
+    expect(passes[0].dist).toBeCloseTo(11.1, 0);
+    expect(passes[1].dist).toBeCloseTo(44.5, 0);
+  });
+  it('ignores passes farther than maxDist and counts a vertex minimum once', () => {
+    expect(nearPasses(back, [0.0001, 0.005], 30)).toHaveLength(1);
+    expect(nearPasses(back, [0, 0.01], 150)).toHaveLength(1);
+  });
+  it('a wiggle within one pass is still one pass, at its closest point', () => {
+    // north with a small zigzag just past the point: two local minima (56 m, then 63 m), one physical pass
+    const wiggly: LngLat[] = [[0, 0], [0, 0.001], [-0.0001, 0.0012], [0.0001, 0.0014], [0, 0.003]];
+    const passes = nearPasses(wiggly, [0.0005, 0.001], 150);
+    expect(passes).toHaveLength(1);
+    expect(passes[0].along).toBeCloseTo(0.001 * 111195, -1);
+  });
+  it('a hairpin of two long segments is two passes (the line leaves between them)', () => {
+    const hairpin: LngLat[] = [[0, 0], [0, 0.02], [0.0005, 0]];
+    expect(nearPasses(hairpin, [0.0002, 0], 150)).toHaveLength(2);
   });
 });
