@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import type { FilterSpecification, GeoJSONSource, Map as MlMap, Popup } from 'maplibre-gl';
 import type { Network, Snapshot, VehicleRun } from '@/lib/types';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
+import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
 import { VehiclePopup } from './VehiclePopup';
 
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
@@ -216,6 +217,7 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
 
     void import('maplibre-gl').then((ml) => {
       if (cancelled || !containerRef.current) return;
+      ml.setWorkerUrl(maplibreWorkerUrl(ml.getVersion()));
       map = new ml.Map({
         container: containerRef.current,
         style: media.matches ? STYLE_DARK : STYLE_LIGHT,
@@ -225,7 +227,9 @@ export function LiveMap({ network, snapshot, hiddenLines, onStationClick, onShow
       });
       mapRef.current = map;
       setMapLib(ml);
-      map.addControl(new ml.AttributionControl({ compact: true, customAttribution: 'Données IDFM (PRIM)' }), 'bottom-right');
+      // No `compact` option: full credits stay visible on wide screens (compact: true folds them to an "i" on the first
+      // drag); MapLibre switches to the foldable compact form by itself under 640 px.
+      map.addControl(new ml.AttributionControl({ customAttribution: 'Données IDFM (PRIM)' }), 'bottom-right');
       map.addControl(new ml.NavigationControl({ showCompass: false }), 'top-right');
       map.on('style.load', () => {
         readyRef.current = false;

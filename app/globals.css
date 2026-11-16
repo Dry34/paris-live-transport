@@ -216,6 +216,7 @@ button {
 .disruptions-empty { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .disruption { border-left: 3px solid #d97706; background: var(--surface-2); border-radius: 0 8px 8px 0; }
 .disruption.sev-bloquante { border-left-color: #dc2626; }
+.disruption.sev-perturbee { border-left-color: #d97706; }
 .disruption.sev-information { border-left-color: var(--muted); }
 .disruption summary {
   display: flex;
