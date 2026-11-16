@@ -193,8 +193,12 @@ export class Poller {
     const now = this.deps.now();
     if (!this.replayDisruptions) {
       // Evaluated at the fixture's capture time so that its periods are active whenever the replay runs.
-      const raw = JSON.parse(readFileSync(path.join(process.cwd(), 'tests/fixtures/disruptions-sample.json'), 'utf8'));
-      this.replayDisruptions = parseDisruptions(raw, Date.parse(raw.lastUpdatedDate));
+      try {
+        const raw = JSON.parse(readFileSync(path.join(process.cwd(), 'tests/fixtures/disruptions-sample.json'), 'utf8'));
+        this.replayDisruptions = parseDisruptions(raw, Date.parse(raw.lastUpdatedDate));
+      } catch {
+        this.replayDisruptions = []; // timetable replay must still work without disruptions
+      }
       this.cachedDisruptions = this.replayDisruptions;
     }
     if (!this.replayJourneys) {

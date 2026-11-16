@@ -81,7 +81,7 @@ describe('parseDisruptions', () => {
       lines: [],
     });
     const viaLines = { ...mk({}), lines: [{ id: 'IDFM:C01371', impactedObjects: [{ type: 'line', id: 'x', disruptionIds: ['d1'] }] }] };
-    expect(parseDisruptions(viaLines, NOW)[0]).toMatchObject({ id: 'd1', lineIds: ['C01371'], message: 'a & b\nc' });
+    expect(parseDisruptions(viaLines, NOW)[0]).toMatchObject({ id: 'd1', lineIds: ['C01371'], message: 'a & b\nc ‹' });
     const viaSection = mk({ impactedSections: [{ lineId: 'line:IDFM:C01742' }, { lineId: 'line:IDFM:C00001' }] });
     expect(parseDisruptions(viaSection, NOW)[0].lineIds).toEqual(['C01742']);
     expect(parseDisruptions(mk({}), NOW)).toEqual([]);

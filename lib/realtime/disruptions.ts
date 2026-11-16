@@ -54,7 +54,7 @@ export function parsePrimDate(s: unknown): number {
   return parisWallToEpoch(y, mo, d, h, mi, sec);
 }
 
-const ENTITIES: Record<string, string> = { amp: '&', lt: '', gt: '', quot: '"', apos: "'", nbsp: ' ', laquo: '«', raquo: '»' };
+const ENTITIES: Record<string, string> = { amp: '&', lt: '‹', gt: '›', quot: '"', apos: "'", nbsp: ' ', laquo: '«', raquo: '»' };
 
 /** HTML -> plain text: line breaks kept, tags removed, entities decoded. */
 export function htmlToText(html: string): string {
