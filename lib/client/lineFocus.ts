@@ -60,22 +60,33 @@ export function directionLabel(branches: FocusBranch[], directionId: 0 | 1): str
 
 export interface StationArrival { seconds: number | null; atPlatform: boolean }
 
+const normName = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
 /**
  * Does the run, stopping at index k (a quay of branch.stations[i]), travel along the branch?
- * Yes when it goes on to the next branch station, or ends there coming from the previous one at the
- * branch terminus. A run going on to a station outside the branch (it left for a sibling branch) also
- * counts before the terminus, unless it comes from the next branch station (the opposite direction).
+ * The ET feed truncates runs (often just [previous, next]), so a run's last listed stop is rarely its terminus.
+ * - With a following stop: yes when it is a later branch station (j > i, which also covers express runs that skip
+ *   stations), or a station outside the branch (it leaves for a sibling branch) unless the run comes from a later
+ *   branch station (the opposite direction).
+ * - As the run's last listed stop: yes when the previous stop is an earlier branch station.
+ * - As the run's only stop (a train waiting at its origin): yes at the branch origin or when the run's destination
+ *   is the branch terminus.
  */
-function alongBranch(run: VehicleRun, k: number, i: number, branch: FocusBranch, network: Network): boolean {
-  const st = (idx: number) => (run.stops[idx] ? stationOfQuay(network, run.stops[idx].quay) : null);
-  const last = branch.stations.length - 1;
-  const next = st(k + 1);
-  if (next !== null) {
-    if (i < last && next === branch.stations[i + 1]) return true;
-    if (i < last && !branch.stations.includes(next)) return st(k - 1) !== branch.stations[i + 1];
-    return false;
+function alongBranch(run: VehicleRun, k: number, i: number, branch: FocusBranch, network: Network, index: Map<string, number>): boolean {
+  const idx = (n: number) => {
+    const stop = run.stops[n];
+    if (!stop) return { exists: false, j: undefined };
+    const s = stationOfQuay(network, stop.quay);
+    return { exists: true, j: s === null ? undefined : index.get(s) };
+  };
+  const next = idx(k + 1);
+  const prev = idx(k - 1);
+  if (next.exists) {
+    if (next.j !== undefined) return next.j > i;
+    return i < branch.stations.length - 1 && !(prev.j !== undefined && prev.j > i);
   }
-  return k === run.stops.length - 1 && i === last && i > 0 && st(k - 1) === branch.stations[i - 1];
+  if (prev.exists) return prev.j !== undefined && prev.j < i;
+  return i === 0 || (run.destination !== '' && normName(run.destination) === normName(branch.terminusName));
 }
 
 /** `runs` must already be limited to the focused line: a branch carries no lineId, so other lines' runs would pollute the times. */
@@ -96,7 +107,7 @@ export function nextArrivalsAlongBranch(
       const station = stationOfQuay(network, stop.quay);
       const i = station === null ? undefined : index.get(station);
       if (station === null || i === undefined) return;
-      if (!alongBranch(run, k, i, branch, network)) return;
+      if (!alongBranch(run, k, i, branch, network, index)) return;
       const entry = result[station];
       if (pos && pos.state === 'dwelling' && pos.nextQuay === stop.quay) entry.atPlatform = true;
       if (k === 0 && run.prevInferred) return;

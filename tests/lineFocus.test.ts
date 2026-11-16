@@ -109,6 +109,32 @@ describe('nextArrivalsAlongBranch', () => {
     expect(r.S2.seconds).toBe(90);
     expect(r.S1.seconds).toBe(150);
   });
+  it('counts the last listed stop of a truncated 2-stop run mid-branch', () => {
+    const r = nextArrivalsAlongBranch(b4, [run('T', [['q2', t - 30_000, t - 20_000], ['q3', t + 60_000, null]])], net, t);
+    expect(r.S3.seconds).toBe(60);
+    expect(r.S2.seconds).toBeNull();
+    expect(r.S4.seconds).toBeNull();
+  });
+  it('ignores the last listed stop of a truncated run coming from a later branch station', () => {
+    const r = nextArrivalsAlongBranch(b4, [run('U', [['q3', t - 30_000, t - 20_000], ['q2', t + 60_000, null]])], net, t);
+    expect(r.S2.seconds).toBeNull();
+  });
+  it('flags atPlatform for a train dwelling at its last listed stop', () => {
+    const r = nextArrivalsAlongBranch(b4, [run('V', [['q1', t - 100_000, t - 90_000], ['q2', t - 10_000, t + 40_000]])], net, t);
+    expect(r.S2.atPlatform).toBe(true);
+  });
+  it('counts an express run at the station before the stops it skips', () => {
+    const r = nextArrivalsAlongBranch(b4, [run('X', [['q1', null, t + 30_000], ['q3', t + 150_000, t + 160_000], ['q4', t + 220_000, null]])], net, t);
+    expect(r.S1.seconds).toBe(30);
+    expect(r.S2.seconds).toBeNull();
+    expect(r.S3.seconds).toBe(150);
+    expect(r.S4.seconds).toBe(220);
+  });
+  it('a single-stop run counts at the branch origin or when its destination is the terminus', () => {
+    expect(nextArrivalsAlongBranch(b4, [run('O', [['q1', null, t + 45_000]])], net, t).S1.seconds).toBe(45);
+    expect(nextArrivalsAlongBranch(b4, [run('P', [['q3', null, t + 45_000]], { destination: 's4' })], net, t).S3.seconds).toBe(45);
+    expect(nextArrivalsAlongBranch(b4, [run('Q', [['q3', null, t + 45_000]], { destination: 'S1' })], net, t).S3.seconds).toBeNull();
+  });
   it('past times are ignored', () => {
     const r = nextArrivalsAlongBranch(b4, [run('G', [['q2', t - 60_000, t - 50_000], ['q3', t + 10_000, t + 20_000], ['q4', t + 80_000, null]])], net, t);
     expect(r.S2.seconds).toBeNull();
