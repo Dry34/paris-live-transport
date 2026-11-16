@@ -5,6 +5,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { Disruption, Network, Snapshot } from '@/lib/types';
 import {
+  branchLabel,
   correspondences,
   directionLabel,
   lineBranches,
@@ -95,13 +96,13 @@ export function LineSheet({
         <div className="branch-chips" role="group" aria-label="Branche">
           {dirBranches.map((b, i) => (
             <button
-              key={b.terminusStationId}
+              key={`${b.originStationId}>${b.terminusStationId}`}
               type="button"
               className="branch-chip"
               aria-pressed={b === branch}
               onClick={() => setBranchIndex(i)}
             >
-              vers {b.terminusName}
+              {branchLabel(b, dirBranches)}
             </button>
           ))}
         </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Disruption, Network, VehicleRun } from '../lib/types';
 import {
+  branchLabel,
   correspondences,
   directionLabel,
   fadeColor,
@@ -58,6 +59,67 @@ describe('lineBranches', () => {
   it('labels directions', () => {
     expect(directionLabel(branches, 0)).toBe('vers S4 / S5');
     expect(directionLabel(branches, 1)).toBe('vers S1');
+  });
+});
+
+/** A line whose patterns are given as station lists (one quay per station, named after it). */
+const mkLineNet = (pats: [0 | 1, string[], number][]): Network => {
+  const quays: Network['quays'] = {};
+  const stations: Network['stations'] = {};
+  for (const [, ss] of pats) for (const s of ss) {
+    quays[`q${s}`] = { id: `q${s}`, name: s, lon: 2, lat: 48, stationId: s };
+    stations[s] = { id: s, name: s, lon: 2, lat: 48, quays: [`q${s}`], lines: [L] };
+  }
+  return {
+    generatedAt: '', lines: {}, quays, stations, segments: {},
+    patterns: pats.map(([directionId, ss, trips]) => ({ lineId: L, directionId, quays: ss.map((s) => `q${s}`), trips, headsign: '' })),
+  };
+};
+const summary = (bs: ReturnType<typeof lineBranches>) => bs.map((b) => [b.directionId, b.originStationId, b.terminusStationId, b.trips]);
+const labels = (bs: ReturnType<typeof lineBranches>, d: 0 | 1) => {
+  const sib = bs.filter((b) => b.directionId === d);
+  return sib.map((b) => branchLabel(b, sib));
+};
+
+describe('lineBranches by origin and terminus', () => {
+  it('derives directions from station order, not from a mixed GTFS directionId', () => {
+    const bs = lineBranches(mkLineNet([
+      [0, ['A', 'B', 'C', 'D'], 100],
+      [1, ['D', 'C', 'B', 'A'], 90],
+      [0, ['D', 'C', 'B', 'X'], 40], // reversed run wrongly labelled 0
+    ]), L);
+    expect(summary(bs)).toEqual([[0, 'A', 'D', 100], [1, 'D', 'A', 90], [1, 'D', 'X', 40]]);
+    expect(bs[0].originName).toBe('A');
+  });
+  it('splits arms converging on a shared terminus', () => {
+    const bs = lineBranches(mkLineNet([
+      [0, ['O1', 'P', 'Q', 'T'], 60],
+      [0, ['O2', 'R', 'Q', 'T'], 40],
+      [1, ['T', 'Q', 'P', 'O1'], 60],
+    ]), L);
+    expect(summary(bs)).toEqual([[0, 'O1', 'T', 60], [0, 'O2', 'T', 40], [1, 'T', 'O1', 60]]);
+    expect(labels(bs, 0)).toEqual(['depuis O1', 'depuis O2']);
+    expect(directionLabel(bs, 0)).toBe('vers T');
+  });
+  it('drops a short working whose stations are a subsequence of a kept branch', () => {
+    const bs = lineBranches(mkLineNet([
+      [0, ['A', 'B', 'C', 'D', 'E'], 80],
+      [0, ['A', 'B', 'C'], 20],
+    ]), L);
+    expect(summary(bs)).toEqual([[0, 'A', 'E', 80]]);
+  });
+  it('labels diverging arms by terminus and mixed arms by origin and terminus', () => {
+    const div = lineBranches(mkLineNet([[0, ['A', 'B', 'T1'], 70], [0, ['A', 'B', 'T2'], 30]]), L);
+    expect(labels(div, 0)).toEqual(['vers T1', 'vers T2']);
+    expect(directionLabel(div, 0)).toBe('vers T1 / T2');
+    const mixed = lineBranches(mkLineNet([[0, ['A', 'B', 'C', 'T1'], 70], [0, ['Z', 'B', 'C', 'T2'], 30]]), L);
+    expect(labels(mixed, 0)).toEqual(['A → T1', 'Z → T2']);
+  });
+  it('orders direction termini by aggregated trips', () => {
+    const bs = lineBranches(mkLineNet([
+      [0, ['O1', 'P', 'T1'], 40], [0, ['O2', 'P', 'T1'], 40], [0, ['O1', 'P', 'T2'], 60],
+    ]), L);
+    expect(directionLabel(bs, 0)).toBe('vers T1 / T2');
   });
 });
 

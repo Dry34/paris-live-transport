@@ -3,58 +3,157 @@ import { positionAt } from './interpolate';
 
 export interface FocusBranch {
   directionId: 0 | 1;
+  originStationId: string;
+  originName: string;
   terminusStationId: string;
   terminusName: string;
   stations: string[];
   trips: number;
 }
 
-/** A terminus must carry at least this share of a direction's trips to become a branch. */
+/** An origin/terminus pair must carry at least this share of a direction's trips to become a branch. */
 const MIN_BRANCH_SHARE = 0.05;
 /** A train due within this delay is shown "à quai". */
 const AT_PLATFORM_MS = 30_000;
 
 const stationOfQuay = (network: Network, quay: string): string | null => network.quays[quay]?.stationId ?? null;
 
+const stationList = (network: Network, quays: string[]): string[] => {
+  const stations: string[] = [];
+  for (const q of quays) {
+    const s = stationOfQuay(network, q);
+    if (s && stations[stations.length - 1] !== s) stations.push(s);
+  }
+  return stations;
+};
+
+/**
+ * Relative order of two station lists: same (0) or opposite (1) direction, judged on the stations they share
+ * (first occurrences), with the number of shared stations. null when they share < 2 stations or the order is a tie.
+ */
+function relation(a: string[], b: string[]): { parity: 0 | 1; shared: number } | null {
+  const posB = new Map<string, number>();
+  b.forEach((s, i) => { if (!posB.has(s)) posB.set(s, i); });
+  const seen = new Set<string>();
+  const positions: number[] = [];
+  for (const s of a) {
+    if (seen.has(s)) continue;
+    seen.add(s);
+    const j = posB.get(s);
+    if (j !== undefined) positions.push(j);
+  }
+  if (positions.length < 2) return null;
+  let up = 0, down = 0;
+  for (let i = 1; i < positions.length; i++) {
+    if (positions[i] > positions[i - 1]) up++;
+    else down++;
+  }
+  if (up === down) return null;
+  return { parity: up > down ? 0 : 1, shared: positions.length };
+}
+
+/**
+ * Splits a line's patterns into two directions from the order of their stations: GTFS direction_id mixes directions
+ * on some lines (RER A, C, D). Starting from the most frequent pattern, each pattern is placed relative to the placed
+ * pattern it shares the most stations with; a pattern sharing < 2 stations with every placed one falls back to its
+ * GTFS directionId relative to the seed's. The group of the most frequent GTFS-direction-0 pattern becomes direction 0.
+ */
+function orderedDirections(pats: { directionId: 0 | 1; stations: string[]; trips: number }[]): (0 | 1)[] {
+  const n = pats.length;
+  const order = [...pats.keys()].sort((x, y) => pats[y].trips - pats[x].trips);
+  const rel = pats.map((p, i) => pats.map((q, j) => (i === j ? null : relation(p.stations, q.stations))));
+  const parity: (0 | 1 | undefined)[] = new Array(n).fill(undefined);
+  const best: ({ parity: 0 | 1; shared: number } | null)[] = new Array(n).fill(null);
+  const seed = order[0];
+  const place = (i: number, par: 0 | 1) => {
+    parity[i] = par;
+    for (let j = 0; j < n; j++) {
+      const r = rel[i][j];
+      if (parity[j] !== undefined || !r) continue;
+      if (!best[j] || r.shared > best[j]!.shared) best[j] = { parity: (par ^ r.parity) as 0 | 1, shared: r.shared };
+    }
+  };
+  place(seed, 0);
+  for (let placed = 1; placed < n; placed++) {
+    let next = -1;
+    for (const j of order) if (parity[j] === undefined && best[j] && (next < 0 || best[j]!.shared > best[next]!.shared)) next = j;
+    if (next >= 0) place(next, best[next]!.parity);
+    else {
+      const j = order.find((k) => parity[k] === undefined)!;
+      place(j, pats[j].directionId === pats[seed].directionId ? 0 : 1);
+    }
+  }
+  const anchor = order.find((i) => pats[i].directionId === 0) ?? seed;
+  const flip = pats[anchor].directionId === 0 ? parity[anchor]! : (parity[anchor]! ^ 1);
+  return parity.map((p) => (p! ^ flip) as 0 | 1);
+}
+
+const isSubsequence = (short: string[], long: string[]): boolean => {
+  let i = 0;
+  for (const s of long) if (i < short.length && s === short[i]) i++;
+  return i === short.length;
+};
+
+/**
+ * Branches of a line: directions derived from station order, then one branch per (origin, terminus) pair carrying
+ * ≥ 5 % of its direction's trips, minus short workings whose stations are a subsequence of a bigger branch.
+ */
 export function lineBranches(network: Network, lineId: string): FocusBranch[] {
+  const pats = network.patterns
+    .filter((p) => p.lineId === lineId && p.trips > 0)
+    .map((p) => ({ directionId: p.directionId, trips: p.trips, stations: stationList(network, p.quays) }))
+    .filter((p) => p.stations.length > 0);
+  if (pats.length === 0) return [];
+  const dirs = orderedDirections(pats);
+  const name = (id: string) => network.stations[id]?.name ?? id;
   const out: FocusBranch[] = [];
   for (const directionId of [0, 1] as const) {
-    const pats = network.patterns.filter((p) => p.lineId === lineId && p.directionId === directionId && p.quays.length > 0);
-    const total = pats.reduce((n, p) => n + p.trips, 0);
-    if (total === 0) continue;
-    const byTerminus = new Map<string, { trips: number; best: (typeof pats)[number] }>();
-    for (const p of pats) {
-      const terminus = stationOfQuay(network, p.quays[p.quays.length - 1]);
-      if (!terminus) continue;
-      const g = byTerminus.get(terminus);
-      if (!g) byTerminus.set(terminus, { trips: p.trips, best: p });
+    const group = pats.filter((_, i) => dirs[i] === directionId);
+    const total = group.reduce((n, p) => n + p.trips, 0);
+    const byKey = new Map<string, { trips: number; best: (typeof pats)[number] }>();
+    for (const p of group) {
+      const key = `${p.stations[0]}>${p.stations[p.stations.length - 1]}`;
+      const g = byKey.get(key);
+      if (!g) byKey.set(key, { trips: p.trips, best: p });
       else {
         g.trips += p.trips;
         if (p.trips > g.best.trips) g.best = p;
       }
     }
-    for (const [terminusStationId, g] of byTerminus) {
-      if (g.trips / total < MIN_BRANCH_SHARE) continue;
-      const stations: string[] = [];
-      for (const q of g.best.quays) {
-        const s = stationOfQuay(network, q);
-        if (s && stations[stations.length - 1] !== s) stations.push(s);
-      }
-      out.push({
+    const candidates = [...byKey.values()].filter((g) => g.trips / total >= MIN_BRANCH_SHARE).sort((a, b) => b.trips - a.trips);
+    const kept: FocusBranch[] = [];
+    for (const g of candidates) {
+      const stations = g.best.stations;
+      if (kept.some((k) => isSubsequence(stations, k.stations))) continue;
+      const originStationId = stations[0];
+      const terminusStationId = stations[stations.length - 1];
+      kept.push({
         directionId,
+        originStationId,
+        originName: name(originStationId),
         terminusStationId,
-        terminusName: network.stations[terminusStationId]?.name ?? terminusStationId,
+        terminusName: name(terminusStationId),
         stations,
         trips: g.trips,
       });
     }
+    out.push(...kept);
   }
   return out.sort((a, b) => a.directionId - b.directionId || b.trips - a.trips);
 }
 
-/** "vers A / B": the two main termini of a direction (one if only one). */
+/** Chip label of a branch among its direction's branches: by origin when they converge, by terminus when they diverge. */
+export function branchLabel(branch: FocusBranch, siblings: FocusBranch[]): string {
+  if (siblings.every((b) => b.terminusStationId === branch.terminusStationId)) return `depuis ${branch.originName}`;
+  if (siblings.every((b) => b.originStationId === branch.originStationId)) return `vers ${branch.terminusName}`;
+  return `${branch.originName} → ${branch.terminusName}`;
+}
+
+/** "vers A / B": the two main termini of a direction by aggregated trips (one if only one). */
 export function directionLabel(branches: FocusBranch[], directionId: 0 | 1): string {
-  const names = branches.filter((b) => b.directionId === directionId).slice(0, 2).map((b) => b.terminusName);
+  const trips = new Map<string, number>();
+  for (const b of branches) if (b.directionId === directionId) trips.set(b.terminusName, (trips.get(b.terminusName) ?? 0) + b.trips);
+  const names = [...trips].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([n]) => n);
   return names.length ? `vers ${names.join(' / ')}` : '';
 }
 
