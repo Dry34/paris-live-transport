@@ -1,5 +1,5 @@
 import type { LngLat, Network, RunStop, VehicleRun } from '../types';
-import { pointAtFraction } from '../geo';
+import { bearingAtFraction, pointAtFraction } from '../geo';
 
 export type RunPosition = {
   coord: LngLat;
@@ -8,6 +8,8 @@ export type RunPosition = {
   fraction: number;
   nextQuay: string | null;
   nextTime: number | null;
+  /** Direction of travel in degrees (0 = north, clockwise), or null when unknown. */
+  bearing: number | null;
 };
 
 const GRACE_AFTER_END_MS = 60_000;
@@ -26,10 +28,17 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
   const { stops } = run;
   if (stops.length === 0 || run.hide === 'always') return null;
 
+  const sectionBearing = (from: number, to: number, f: 0 | 1): number | null => {
+    if (from < 0 || to >= stops.length) return null;
+    const seg = network.segments[`${stops[from].quay}>${stops[to].quay}`];
+    return seg ? bearingAtFraction(seg.coords, f) : null;
+  };
   const atQuay = (i: number, state: 'dwelling' | 'waiting', nextTime: number | null): RunPosition | null => {
     const q = network.quays[stops[i].quay];
     if (!q) return null;
-    return { coord: [q.lon, q.lat], state, segmentKey: null, fraction: 0, nextQuay: stops[i].quay, nextTime };
+    // Heading: the section it is about to run, else the one it arrived on.
+    const bearing = sectionBearing(i, i + 1, 0) ?? sectionBearing(i - 1, i, 1);
+    return { coord: [q.lon, q.lat], state, segmentKey: null, fraction: 0, nextQuay: stops[i].quay, nextTime, bearing };
   };
 
   const firstDep = depOf(stops[0]);
@@ -68,6 +77,7 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
         fraction,
         nextQuay: next.quay,
         nextTime: nextArr,
+        bearing: bearingAtFraction(seg.coords, fraction),
       };
     }
   }

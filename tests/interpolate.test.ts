@@ -77,7 +77,7 @@ describe('positionAt', () => {
 
 describe('createSmoother', () => {
   const p = (fraction: number, segmentKey: string | null = 'A>B'): RunPosition => ({
-    coord: [0, fraction], state: 'moving', segmentKey, fraction, nextQuay: 'B', nextTime: 0,
+    coord: [0, fraction], state: 'moving', segmentKey, fraction, nextQuay: 'B', nextTime: 0, bearing: 0,
   });
   it('never goes backwards on the same segment', () => {
     const s = createSmoother();
@@ -95,5 +95,39 @@ describe('createSmoother', () => {
   });
   it('passes null through', () => {
     expect(createSmoother()('r', null)).toBeNull();
+  });
+});
+
+describe('positionAt bearing', () => {
+  const east = {
+    quays: {
+      A: { id: 'A', name: 'A', lon: 0, lat: 0, stationId: 'sA' },
+      B: { id: 'B', name: 'B', lon: 0, lat: 0.01, stationId: 'sB' },
+      C: { id: 'C', name: 'C', lon: 0.01, lat: 0.01, stationId: 'sC' },
+    },
+    segments: {
+      'A>B': { coords: [[0, 0], [0, 0.01]], seconds: 60 },
+      'B>C': { coords: [[0, 0.01], [0.01, 0.01]], seconds: 60 },
+    },
+  } as unknown as Network;
+  const run = mk([
+    { quay: 'A', arr: null, dep: t0 },
+    { quay: 'B', arr: t0 + 60_000, dep: t0 + 80_000 },
+    { quay: 'C', arr: t0 + 140_000, dep: null },
+  ]);
+  it('moving: bearing of the track (north on A>B, east on B>C)', () => {
+    expect(positionAt(run, east, t0 + 30_000)!.bearing).toBeCloseTo(0, 0);
+    expect(positionAt(run, east, t0 + 110_000)!.bearing).toBeCloseTo(90, 0);
+  });
+  it('waiting / dwelling: heading of the next section', () => {
+    expect(positionAt(run, east, t0 - 5_000)!.bearing).toBeCloseTo(0, 0);
+    expect(positionAt(run, east, t0 + 70_000)!.bearing).toBeCloseTo(90, 0);
+  });
+  it('at the last stop: heading of the section it arrived on', () => {
+    expect(positionAt(run, east, t0 + 150_000)!.bearing).toBeCloseTo(90, 0);
+  });
+  it('null when no section geometry is known around the quay', () => {
+    const lone = mk([{ quay: 'A', arr: null, dep: t0 }]);
+    expect(positionAt(lone, east, t0 - 5_000)!.bearing).toBeNull();
   });
 });

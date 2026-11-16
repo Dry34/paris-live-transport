@@ -30,6 +30,30 @@ const BASEMAP_BG = { light: '#fafaf8', dark: '#0e0e0e' } as const;
 type FC = GeoJSON.FeatureCollection;
 const featureCollection = (features: GeoJSON.Feature[]): FC => ({ type: 'FeatureCollection', features });
 
+/** Direction arrow drawn as an SDF icon: a chevron just outside a centred circle of ARROW_CIRCLE_PX radius. */
+const ARROW_IMAGE = 'vehicle-arrow';
+const ARROW_SIZE_PX = 64;
+const ARROW_CIRCLE_PX = 18;
+function arrowImage(): ImageData {
+  const size = ARROW_SIZE_PX;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const c = size / 2;
+  const base = c - ARROW_CIRCLE_PX + 3; // base hidden under the circle's edge
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(c, 2); // tip, pointing north
+  ctx.lineTo(c + 10, base);
+  ctx.lineTo(c - 10, base);
+  ctx.closePath();
+  ctx.fill();
+  return ctx.getImageData(0, 0, size, size);
+}
+/** Vehicle circle radius by zoom; the arrow icon is scaled so its inner circle matches it. */
+const VEHICLE_RADIUS: [number, number][] = [[9, 3], [12, 7], [15, 11]];
+
 export interface LiveMapProps {
   network: Network;
   snapshot: Snapshot | null;
@@ -185,12 +209,33 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
           'circle-opacity': 0.25,
         },
       });
+      if (!m.hasImage(ARROW_IMAGE)) m.addImage(ARROW_IMAGE, arrowImage(), { sdf: true });
+      m.addLayer({
+        id: 'vehicle-arrows',
+        type: 'symbol',
+        source: 'vehicles',
+        filter: ['has', 'bearing'],
+        layout: {
+          'icon-image': ARROW_IMAGE,
+          'icon-size': ['interpolate', ['linear'], ['zoom'], ...VEHICLE_RADIUS.flatMap(([z, r]) => [z, r / ARROW_CIRCLE_PX])] as DataDrivenPropertyValueSpecification<number>,
+          'icon-rotate': ['get', 'bearing'],
+          'icon-rotation-alignment': 'map',
+          'icon-pitch-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: {
+          'icon-color': ['get', 'color'],
+          'icon-halo-color': media.matches ? '#10141b' : '#ffffff',
+          'icon-halo-width': 1,
+        },
+      });
       m.addLayer({
         id: 'vehicles',
         type: 'circle',
         source: 'vehicles',
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3, 12, 7, 15, 11],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], ...VEHICLE_RADIUS.flat()] as DataDrivenPropertyValueSpecification<number>,
           'circle-color': ['get', 'color'],
           'circle-stroke-color': media.matches ? '#10141b' : '#ffffff',
           'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 2],
@@ -233,7 +278,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         positions.set(run.id, p);
         features.push({
           type: 'Feature',
-          properties: { id: run.id, color: line.color, textColor: line.textColor, label: line.shortName },
+          properties: { id: run.id, color: line.color, textColor: line.textColor, label: line.shortName, ...(p.bearing === null ? {} : { bearing: p.bearing }) },
           geometry: { type: 'Point', coordinates: p.coord },
         });
       }

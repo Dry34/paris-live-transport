@@ -82,3 +82,28 @@ export function pointAtFraction(line: LngLat[], f: number): LngLat {
   const fc = Math.max(0, Math.min(1, f));
   return pointAtAlong(line, cum, fc * cum[cum.length - 1]);
 }
+
+/** Initial compass bearing from a to b in degrees: 0 = north, 90 = east (clockwise, [0, 360)). */
+export function bearingDeg(a: LngLat, b: LngLat): number {
+  const rad = Math.PI / 180;
+  const [lon1, lat1] = [a[0] * rad, a[1] * rad];
+  const [lon2, lat2] = [b[0] * rad, b[1] * rad];
+  const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+  return ((Math.atan2(y, x) / rad) % 360 + 360) % 360;
+}
+
+/** Window (metres) around the point used to read the local direction of travel. */
+const BEARING_WINDOW_M = 15;
+
+/** Local direction of travel at fraction f along the line, or null when the line has no length. */
+export function bearingAtFraction(line: LngLat[], f: number): number | null {
+  if (line.length < 2) return null;
+  const cum = cumulativeLengths(line);
+  const total = cum[cum.length - 1];
+  if (total <= 0) return null;
+  const at = Math.max(0, Math.min(1, f)) * total;
+  const from = Math.max(0, Math.min(at - BEARING_WINDOW_M, total - 2 * BEARING_WINDOW_M));
+  const to = Math.min(total, Math.max(at + BEARING_WINDOW_M, 2 * BEARING_WINDOW_M));
+  return bearingDeg(pointAtAlong(line, cum, from), pointAtAlong(line, cum, to));
+}

@@ -43,3 +43,25 @@ describe('geo', () => {
     expect(pointAtFraction([[3, 4]], 0.5)).toEqual([3, 4]);
   });
 });
+
+import { bearingDeg, bearingAtFraction } from '../lib/geo';
+describe('bearing', () => {
+  it('bearingDeg: north 0, east 90, south 180, west 270', () => {
+    expect(bearingDeg([2.35, 48.85], [2.35, 48.86])).toBeCloseTo(0, 0);
+    expect(bearingDeg([2.35, 48.85], [2.36, 48.85])).toBeCloseTo(90, 0);
+    expect(bearingDeg([2.35, 48.86], [2.35, 48.85])).toBeCloseTo(180, 0);
+    expect(bearingDeg([2.36, 48.85], [2.35, 48.85])).toBeCloseTo(270, 0);
+  });
+  it('bearingAtFraction follows the local direction of an L-shaped line', () => {
+    const L: [number, number][] = [[0, 0], [0, 0.01], [0.01, 0.01]];
+    expect(bearingAtFraction(L, 0.25)).toBeCloseTo(0, 0);
+    expect(bearingAtFraction(L, 0.75)).toBeCloseTo(90, 0);
+    expect(bearingAtFraction(L, 0)).toBeCloseTo(0, 0);
+    expect(bearingAtFraction(L, 1)).toBeCloseTo(90, 0);
+  });
+  it('bearingAtFraction is null for degenerate lines', () => {
+    expect(bearingAtFraction([], 0.5)).toBeNull();
+    expect(bearingAtFraction([[1, 1]], 0.5)).toBeNull();
+    expect(bearingAtFraction([[1, 1], [1, 1]], 0.5)).toBeNull();
+  });
+});
