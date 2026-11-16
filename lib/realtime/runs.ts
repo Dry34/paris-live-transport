@@ -1,5 +1,5 @@
 // Builds VehicleRuns from SIRI journeys: matches the previous snapshot, finds each run's previous station.
-import type { Journey, Network, RunStop, VehicleRun } from '../types';
+import type { Journey, Network, Pattern, RunStop, VehicleRun } from '../types';
 
 const MATCH_WINDOW_MS = 120_000;
 const FUTURE_LIMIT_MS = 30 * 60_000;
@@ -42,7 +42,8 @@ function matchPrevious(journeys: Journey[], previous: VehicleRun[]): (Match | nu
 type Previous = { stop: RunStop | null; inferred: boolean } | 'reject';
 
 /** Previous station inherited from the matched run: last stop that disappeared before calls[0]. */
-function inheritedPrevious(m: Match): Previous | null {
+function inheritedPrevious(m: Match): Exclude<Previous, 'reject'> | null {
+  // index -1 happens for SNCF ref matches whose calls[0] is not among the previous stops: fall back to inference.
   if (m.index <= 0) return null;
   const firstCall = m.prev.hasPrevious ? 1 : 0;
   if (m.index > firstCall) return { stop: { ...m.prev.stops[m.index - 1] }, inferred: false };
@@ -50,12 +51,23 @@ function inheritedPrevious(m: Match): Previous | null {
   return { stop: { ...m.prev.stops[0] }, inferred: m.prev.prevInferred };
 }
 
+/** Patterns grouped by lineId, computed once per network object. */
+const patternIndex = new WeakMap<Network, Map<string, Pattern[]>>();
+function patternsOf(net: Network, lineId: string): Pattern[] {
+  let idx = patternIndex.get(net);
+  if (!idx) {
+    idx = new Map();
+    for (const p of net.patterns) idx.set(p.lineId, [...(idx.get(p.lineId) ?? []), p]);
+    patternIndex.set(net, idx);
+  }
+  return idx.get(lineId) ?? [];
+}
+
 /** Previous station inferred from the line's patterns (calls[0] at index > 0, followed by calls[1]). */
 function inferredPrevious(jr: Journey, net: Network): Previous {
   const [c0, c1] = jr.calls;
   const preds: { quay: string; trips: number }[] = [];
-  for (const p of net.patterns) {
-    if (p.lineId !== jr.lineId) continue;
+  for (const p of patternsOf(net, jr.lineId)) {
     p.quays.forEach((q, i) => {
       if (i > 0 && q === c0.quay && (!c1 || p.quays[i + 1] === c1.quay)) preds.push({ quay: p.quays[i - 1], trips: p.trips });
     });
@@ -69,13 +81,36 @@ function inferredPrevious(jr: Journey, net: Network): Previous {
 }
 
 function isTerminus(quay: string, lineId: string, net: Network): boolean {
-  return net.patterns.some((p) => p.lineId === lineId && p.quays[0] === quay);
+  return patternsOf(net, lineId).some((p) => p.quays[0] === quay);
+}
+
+/**
+ * Splits a journey wherever two consecutive calls are not a network segment. RATP SIRI journeys often
+ * group passages of several trains (non-consecutive stations, times out of line order); each contiguous
+ * piece becomes its own run so that every run only travels along real segments. Piece k > 0 gets ref
+ * `ref#k` (empty ref stays empty and falls back to the composite id).
+ */
+function splitAtGaps(jr: Journey, net: Network): Journey[] {
+  const pieces: Journey[] = [];
+  let start = 0;
+  for (let i = 1; i <= jr.calls.length; i++) {
+    if (i < jr.calls.length && net.segments[`${jr.calls[i - 1].quay}>${jr.calls[i].quay}`]) continue;
+    const k = pieces.length;
+    pieces.push({ ...jr, ref: k === 0 || !jr.ref ? jr.ref : `${jr.ref}#${k}`, calls: jr.calls.slice(start, i) });
+    start = i;
+  }
+  return pieces;
 }
 
 export function buildRuns(journeys: Journey[], network: Network, previous: VehicleRun[] | null, now: number): VehicleRun[] {
-  const usable = journeys.filter((j) => j.calls.length > 0);
+  // Rule 3 on the whole journey first: an unknown first quay drops it entirely; later pieces that
+  // start on an unknown quay are dropped by the same check below.
+  const usable = journeys
+    .filter((j) => j.calls.length > 0 && network.quays[j.calls[0].quay])
+    .flatMap((j) => splitAtGaps(j, network));
   const matches = matchPrevious(usable, previous ?? []);
   const runs: VehicleRun[] = [];
+  const reserved = new Set(matches.flatMap((m) => (m ? [m.prev.id] : [])));
   const ids = new Set<string>();
   usable.forEach((jr, i) => {
     const c0 = jr.calls[0];
@@ -87,9 +122,15 @@ export function buildRuns(journeys: Journey[], network: Network, previous: Vehic
     if (prev === 'reject') return;
     if (prev.stop && !network.segments[`${prev.stop.quay}>${c0.quay}`]) return;
 
+    // Matched ids are reserved up front so an unmatched journey cannot take a matched run's identity.
     const fallbackId = `${jr.lineId}:${jr.direction}:${c0.quay}:${at(c0)}`;
     let id = m ? m.prev.id : jr.ref || fallbackId;
-    if (ids.has(id)) id = fallbackId;
+    if (!m && reserved.has(id)) id = fallbackId;
+    if (ids.has(id) || (!m && reserved.has(id))) {
+      let n = 1;
+      while (ids.has(`${fallbackId}#${n}`) || reserved.has(`${fallbackId}#${n}`)) n++;
+      id = `${fallbackId}#${n}`;
+    }
     ids.add(id);
 
     runs.push({

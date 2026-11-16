@@ -136,6 +136,30 @@ describe('buildRuns', () => {
     expect(other[0].id).toBe('j2');
   });
 
+  it('coupe un journey aux paires qui ne sont pas des segments (données RATP non contiguës)', () => {
+    const tB = T + 30 * S;
+    const tD = T + 60 * S;
+    const runs = buildRuns([journey('r1', [['B', tB], ['D', tD]])], net, null, T);
+    expect(runs.map((r) => r.id)).toEqual(['r1', 'r1#1']);
+    // chaque morceau a une station précédente inférée et ne contient que des segments du réseau
+    expect(runs[0].stops.map((s) => s.quay)).toEqual(['A', 'B']);
+    expect(runs[1].stops.map((s) => s.quay)).toEqual(['C', 'D']);
+    expect(runs.every((r) => r.hasPrevious && r.prevInferred)).toBe(true);
+    expect(runs[1].stops[0].dep).toBe(tD - 60000);
+    for (const r of runs) for (let i = 0; i + 1 < r.stops.length; i++) expect(net.segments[`${r.stops[i].quay}>${r.stops[i + 1].quay}`]).toBeDefined();
+  });
+
+  it('un morceau qui commence par un quai inconnu est écarté, le reste est gardé', () => {
+    const runs = buildRuns([journey('r1', [['B', T + 30 * S], ['ZZZ', T + 60 * S]])], net, null, T);
+    expect(runs).toHaveLength(1);
+    expect(runs[0].stops.map((s) => s.quay)).toEqual(['A', 'B']);
+  });
+
+  it('ids des morceaux uniques avec une ref vide', () => {
+    const runs = buildRuns([journey('', [['B', T + 30 * S], ['D', T + 60 * S]])], net, null, T);
+    expect(runs.map((r) => r.id)).toEqual([`${L}:Aller:B:${T + 30 * S}`, `${L}:Aller:D:${T + 60 * S}`]);
+  });
+
   it('ref vide → id composite', () => {
     const runs = buildRuns([journey('', [['B', T + 30 * S]])], net, null, T);
     expect(runs[0].id).toBe(`${L}:Aller:B:${T + 30 * S}`);
