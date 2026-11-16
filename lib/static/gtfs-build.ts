@@ -1,6 +1,6 @@
 // Pure functions building the static network from already-parsed GTFS rows.
 import type { LngLat, Pattern, Quay, Segment, Station } from '../types';
-import { distanceM, projectOnLine, sliceLine, cumulativeLengths } from '../geo';
+import { distanceM, nearPasses, projectOnLine, sliceLine, cumulativeLengths } from '../geo';
 
 export interface GtfsTrip { trip_id: string; route_id: string; direction_id: string; shape_id: string; trip_headsign: string }
 export interface GtfsStopTime { trip_id: string; stop_id: string; stop_sequence: string; arrival_time: string; departure_time: string }
@@ -10,6 +10,9 @@ export interface GtfsStop { stop_id: string; stop_name: string; stop_lat: string
 const MIN_PATTERN_SHARE = 0.02;
 /** Beyond this distance (m) between a quay and the shape, the segment is drawn straight. */
 const MAX_SNAP_M = 150;
+/** A shape slice longer than max(ratio × straight, straight + slack) is not trusted: drawn straight instead. */
+const MAX_SLICE_RATIO = 2.5;
+const MAX_SLICE_SLACK_M = 1500;
 /** Fallback speed (m/s) when no runtime is known. */
 const FALLBACK_SPEED = 10;
 
@@ -117,13 +120,21 @@ function segmentCoords(shape: LngLat[] | undefined, a: LngLat, b: LngLat): { coo
   const straight = { coords: [a, b], snapped: false };
   if (!shape || shape.length < 2) return straight;
   const cum = cumulativeLengths(shape);
-  const pa = projectOnLine(shape, a, cum);
-  if (pa.dist > MAX_SNAP_M) return straight;
-  // B is searched only on the part of the shape after A
-  const rest = sliceLine(shape, pa.along, cum[cum.length - 1]);
-  const pb = projectOnLine(rest, b);
-  if (pb.dist > MAX_SNAP_M) return straight;
-  return { coords: sliceLine(shape, pa.along, pa.along + pb.along), snapped: true };
+  // The shape may pass near A (or B) several times (loops, terminal loops, out-and-back shapes): try every
+  // pass of A, pair it with the first pass of B after it, and keep the shortest forward slice. The score adds
+  // the two snap distances (quay → shape → quay) so that, between near-equal slices, the closest pass wins.
+  const passesB = nearPasses(shape, b, MAX_SNAP_M, cum);
+  let best: { from: number; to: number; score: number } | null = null;
+  for (const pa of nearPasses(shape, a, MAX_SNAP_M, cum)) {
+    const pb = passesB.find((q) => q.along > pa.along);
+    if (!pb) continue;
+    const score = pb.along - pa.along + pa.dist + pb.dist;
+    if (!best || score < best.score) best = { from: pa.along, to: pb.along, score };
+  }
+  if (!best) return straight;
+  const d = distanceM(a, b);
+  if (best.to - best.from > Math.max(MAX_SLICE_RATIO * d, d + MAX_SLICE_SLACK_M)) return straight;
+  return { coords: sliceLine(shape, best.from, best.to), snapped: true };
 }
 
 export function buildSegments(

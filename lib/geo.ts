@@ -24,6 +24,21 @@ export function cumulativeLengths(line: LngLat[]): number[] {
 
 const lerp = (a: LngLat, b: LngLat, t: number): LngLat => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
+/** Closest point of the line segment i (line[i] → line[i + 1]) to p. */
+function projectOnSegment(line: LngLat[], c: number[], i: number, p: LngLat): { along: number; dist: number } {
+  const a = line[i];
+  const b = line[i + 1];
+  // local equirectangular frame around the segment start
+  const k = Math.cos(rad(a[1]));
+  const bx = (b[0] - a[0]) * k;
+  const by = b[1] - a[1];
+  const px = (p[0] - a[0]) * k;
+  const py = p[1] - a[1];
+  const len2 = bx * bx + by * by;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / len2));
+  return { along: c[i] + t * (c[i + 1] - c[i]), dist: distanceM(lerp(a, b, t), p) };
+}
+
 /** Closest point of the polyline to p: distance along the line (m) and distance to the line (m). */
 export function projectOnLine(line: LngLat[], p: LngLat, cum?: number[]): { along: number; dist: number } {
   if (line.length === 0) return { along: 0, dist: Infinity };
@@ -31,21 +46,38 @@ export function projectOnLine(line: LngLat[], p: LngLat, cum?: number[]): { alon
   const c = cum ?? cumulativeLengths(line);
   let best = { along: 0, dist: Infinity };
   for (let i = 0; i < line.length - 1; i++) {
-    const a = line[i];
-    const b = line[i + 1];
-    // local equirectangular frame around the segment start
-    const k = Math.cos(rad(a[1]));
-    const bx = (b[0] - a[0]) * k;
-    const by = b[1] - a[1];
-    const px = (p[0] - a[0]) * k;
-    const py = p[1] - a[1];
-    const len2 = bx * bx + by * by;
-    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / len2));
-    const q = lerp(a, b, t);
-    const dist = distanceM(q, p);
-    if (dist < best.dist) best = { along: c[i] + t * (c[i + 1] - c[i]), dist };
+    const q = projectOnSegment(line, c, i, p);
+    if (q.dist < best.dist) best = q;
   }
   return best;
+}
+
+/**
+ * Every pass of the polyline near p, in order along the line: each maximal stretch of the line within maxDist
+ * of p counts once, at its closest point. A loop or out-and-back line passing p twice yields two passes; a
+ * wiggle that stays near p does not.
+ */
+export function nearPasses(line: LngLat[], p: LngLat, maxDist: number, cum?: number[]): { along: number; dist: number }[] {
+  if (line.length === 0) return [];
+  if (line.length === 1) {
+    const dist = distanceM(line[0], p);
+    return dist <= maxDist ? [{ along: 0, dist }] : [];
+  }
+  const c = cum ?? cumulativeLengths(line);
+  const out: { along: number; dist: number }[] = [];
+  let current: { along: number; dist: number } | null = null;
+  for (let i = 0; i < line.length - 1; i++) {
+    const q = projectOnSegment(line, c, i, p);
+    // A run ends when a segment stays out of range, or when the line goes out of range at the vertex
+    // between two segments that both come close (a hairpin of long segments).
+    if (current && (q.dist > maxDist || distanceM(line[i], p) > maxDist)) {
+      out.push(current);
+      current = null;
+    }
+    if (q.dist <= maxDist && (!current || q.dist < current.dist)) current = q;
+  }
+  if (current) out.push(current);
+  return out;
 }
 
 function pointAtAlong(line: LngLat[], cum: number[], along: number): LngLat {
