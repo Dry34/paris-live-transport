@@ -150,3 +150,13 @@ export function lineBounds(network: Network, lineId: string): [LngLat, LngLat] |
   }
   return Number.isFinite(minLon) ? [[minLon, minLat], [maxLon, maxLat]] : null;
 }
+
+/**
+ * `color` seen at `alpha` over `background`, as one opaque hex color. Fading lines with a blended color rather than
+ * line-opacity keeps them faint where a line's many overlapping shapes would otherwise stack up their opacity.
+ */
+export function fadeColor(color: string, background: string, alpha: number): string {
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const [c, b] = [rgb(color), rgb(background)];
+  return '#' + c.map((v, i) => Math.round(v * alpha + b[i] * (1 - alpha)).toString(16).padStart(2, '0')).join('');
+}

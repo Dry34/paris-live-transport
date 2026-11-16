@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import type { DataDrivenPropertyValueSpecification, GeoJSONSource, Map as MlMap, Popup } from 'maplibre-gl';
 import type { Network, Snapshot, VehicleRun } from '@/lib/types';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
-import { lineBounds } from '@/lib/client/lineFocus';
+import { fadeColor, lineBounds } from '@/lib/client/lineFocus';
 import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
 import { VehiclePopup } from './VehiclePopup';
 
@@ -24,6 +24,8 @@ const STATION_ZOOM = 14;
 const STATIONS_MINZOOM = 12;
 const STATION_LABELS_MINZOOM = 14;
 const FADED_OPACITY = 0.12;
+/** Basemap background colors (Positron, Dark Matter) the faded lines are blended into. */
+const BASEMAP_BG = { light: '#fafaf8', dark: '#0e0e0e' } as const;
 
 type FC = GeoJSON.FeatureCollection;
 const featureCollection = (features: GeoJSON.Feature[]): FC => ({ type: 'FeatureCollection', features });
@@ -43,13 +45,15 @@ export interface LiveMapProps {
 
 interface SelectedView { run: VehicleRun; position: RunPosition; now: number }
 
-function shapesData(network: Network): FC {
+function shapesData(network: Network, dark: boolean): FC {
   const features: GeoJSON.Feature[] = [];
+  const background = dark ? BASEMAP_BG.dark : BASEMAP_BG.light;
   for (const line of Object.values(network.lines)) {
+    const faded = fadeColor(line.color, background, FADED_OPACITY);
     for (const coords of line.shapes) {
       features.push({
         type: 'Feature',
-        properties: { lineId: line.id, color: line.color, w: LINE_WIDTH[line.mode], sort: line.mode === 'tram' ? 0 : 1 },
+        properties: { lineId: line.id, color: line.color, faded, w: LINE_WIDTH[line.mode], sort: line.mode === 'tram' ? 0 : 1 },
         geometry: { type: 'LineString', coordinates: coords },
       });
     }
@@ -70,15 +74,16 @@ function stationsData(network: Network, focus: string | null): FC {
 }
 
 const isFocus = (focus: string): ['==', ['get', 'lineId'], string] => ['==', ['get', 'lineId'], focus];
-const lineOpacity = (focus: string | null): DataDrivenPropertyValueSpecification<number> =>
-  focus ? ['case', isFocus(focus), 1, FADED_OPACITY] : 1;
+/** Other lines take their color pre-blended at 12 % into the basemap (opaque, so overlapping shapes don't add up). */
+const lineColor = (focus: string | null): DataDrivenPropertyValueSpecification<string> =>
+  focus ? ['case', isFocus(focus), ['get', 'color'], ['get', 'faded']] : ['get', 'color'];
 /** The focused line is drawn above every other shape. */
 const lineSortKey = (focus: string | null): DataDrivenPropertyValueSpecification<number> =>
   focus ? ['case', isFocus(focus), 2, ['get', 'sort']] : ['get', 'sort'];
 
 /** Line layer styling and station layer zoom ranges for a focus (or none). */
 function applyFocusStyle(m: MlMap, focus: string | null) {
-  m.setPaintProperty('lines', 'line-opacity', lineOpacity(focus));
+  m.setPaintProperty('lines', 'line-color', lineColor(focus));
   m.setLayoutProperty('lines', 'line-sort-key', lineSortKey(focus));
   m.setLayerZoomRange('stations', focus ? 0 : STATIONS_MINZOOM, 24);
   m.setLayerZoomRange('station-labels', focus ? 0 : STATION_LABELS_MINZOOM, 24);
@@ -119,7 +124,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
     const addLayers = (m: MlMap) => {
       if (m.getSource('lines')) return;
       const firstSymbol = m.getStyle().layers.find((l) => l.type === 'symbol')?.id;
-      m.addSource('lines', { type: 'geojson', data: shapesData(network) });
+      m.addSource('lines', { type: 'geojson', data: shapesData(network, media.matches) });
       m.addSource('stations', { type: 'geojson', data: stationsData(network, focusRef.current) });
       m.addSource('vehicles', { type: 'geojson', data: featureCollection([]) });
       m.addLayer(
@@ -129,8 +134,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
           source: 'lines',
           layout: { 'line-join': 'round', 'line-cap': 'round', 'line-sort-key': lineSortKey(focusRef.current) },
           paint: {
-            'line-color': ['get', 'color'],
-            'line-opacity': lineOpacity(focusRef.current),
+            'line-color': lineColor(focusRef.current),
             'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['*', ['get', 'w'], 0.5], 12, ['get', 'w'], 16, ['*', ['get', 'w'], 2.2]],
           },
         },

@@ -3,6 +3,7 @@ import type { Disruption, Network, VehicleRun } from '../lib/types';
 import {
   correspondences,
   directionLabel,
+  fadeColor,
   lineBounds,
   lineBranches,
   lineStatus,
@@ -146,5 +147,17 @@ describe('lineBounds', () => {
   it('null for unknown or shapeless', () => {
     expect(lineBounds(net, 'zz')).toBeNull();
     expect(lineBounds({ ...net, lines: { [L]: { ...net.lines[L], shapes: [] } } }, L)).toBeNull();
+  });
+});
+
+describe('fadeColor', () => {
+  it('blends a line color into the map background at the given alpha, as one opaque color', () => {
+    expect(fadeColor('#FF0000', '#FFFFFF', 0.12)).toBe('#ffe0e0');
+    expect(fadeColor('#0055C8', '#0e0e0e', 0.12)).toBe('#0c1724');
+  });
+
+  it('returns the color itself at alpha 1 and the background at alpha 0', () => {
+    expect(fadeColor('#FFBE00', '#fafaf8', 1)).toBe('#ffbe00');
+    expect(fadeColor('#FFBE00', '#fafaf8', 0)).toBe('#fafaf8');
   });
 });
