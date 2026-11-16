@@ -1,95 +1,70 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useCallback, useState } from 'react';
+import type { Mode } from '@/lib/types';
+import { useLiveData } from '@/lib/client/useLiveData';
+import { LiveMap } from '@/components/LiveMap';
+import { SidePanel } from '@/components/SidePanel';
+import { StationPanel } from '@/components/StationPanel';
 
-export default function Home() {
+export default function HomePage() {
+  const { network, snapshot, disruptions, error } = useLiveData();
+  const [hiddenLines, setHiddenLines] = useState<ReadonlySet<string>>(() => new Set());
+  const [stationId, setStationId] = useState<string | null>(null);
+  const [shownCount, setShownCount] = useState(0);
+
+  const toggleLine = useCallback((lineId: string) => {
+    setHiddenLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(lineId)) next.delete(lineId);
+      else next.add(lineId);
+      return next;
+    });
+  }, []);
+
+  const toggleMode = useCallback(
+    (mode: Mode, visible: boolean) => {
+      if (!network) return;
+      const ids = Object.values(network.lines).filter((l) => l.mode === mode).map((l) => l.id);
+      setHiddenLines((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) {
+          if (visible) next.delete(id);
+          else next.add(id);
+        }
+        return next;
+      });
+    },
+    [network],
+  );
+
+  const closeStation = useCallback(() => setStationId(null), []);
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <main className="app">
+      {network && (
+        <LiveMap
+          network={network}
+          snapshot={snapshot}
+          hiddenLines={hiddenLines}
+          onStationClick={setStationId}
+          onShownCountChange={setShownCount}
         />
-        <ol>
-          <li>
-            Get started by editing <code>app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      )}
+      {error && (
+        <p className="error-banner" role="status">
+          {error}
+        </p>
+      )}
+      <SidePanel
+        network={network}
+        snapshot={snapshot}
+        disruptions={disruptions}
+        hiddenLines={hiddenLines}
+        shownCount={shownCount}
+        onToggleLine={toggleLine}
+        onToggleMode={toggleMode}
+      />
+      {network && stationId && <StationPanel stationId={stationId} network={network} onClose={closeStation} />}
+    </main>
   );
 }
