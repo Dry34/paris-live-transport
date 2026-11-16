@@ -8,6 +8,7 @@ import {
   formatEta,
   neighborGaps,
   upcomingStops,
+  clockTime,
 } from '../lib/client/vehicleDetails';
 
 const L = 'L';
@@ -151,5 +152,20 @@ describe('neighborGaps', () => {
   it('ignores an inferred previous stop', () => {
     const inferred = run('i', [['q4', s(120), s(130)], ['q5', s(220), null]], { prevInferred: true });
     expect(neighborGaps(me, [me, inferred], net, now)).toEqual({ aheadMin: null, behindMin: null });
+  });
+});
+
+describe('upcomingStops while dwelling', () => {
+  it('keeps the station a train has been standing at for more than 30 s, flagged at platform', () => {
+    const r = run('dw', [['q2', s(-200), s(-190)], ['q3', s(-60), s(20)], ['q4', s(110), null]]);
+    const up = upcomingStops(r, net, now);
+    expect(up[0]).toMatchObject({ quay: 'q3', atPlatform: true });
+    expect(up[1]).toMatchObject({ quay: 'q4', atPlatform: false });
+  });
+});
+
+describe('clockTime', () => {
+  it('formats HH:MM in Europe/Paris', () => {
+    expect(clockTime(Date.parse('2026-11-16T16:05:00Z'))).toBe('17:05');
   });
 });

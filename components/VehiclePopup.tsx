@@ -10,6 +10,7 @@ import {
   dataAgeText,
   estimatedSpeedKmh,
   formatDelay,
+  clockTime,
   formatEta,
   gapText,
   neighborGaps,
@@ -32,7 +33,7 @@ export interface VehiclePopupProps {
 /** Screen-reader wording of a gap, matching gapText's "<1" for gaps under a minute. */
 const gapMinutes = (min: number) => (min < 1 ? 'moins d’une min' : `${min} min`);
 
-function StopRow({ stop, network, now, major, next }: { stop: UpcomingStop; network: Network; now: number; major: boolean; next: boolean }) {
+function StopRow({ stop, network, now, major, next, terminus = false }: { stop: UpcomingStop; network: Network; now: number; major: boolean; next: boolean; terminus?: boolean }) {
   return (
     <li className={`vc-stop${major ? ' is-major' : ''}${next ? ' is-next' : ''}`}>
       <span className="vc-dot" aria-hidden="true" />
@@ -47,7 +48,10 @@ function StopRow({ stop, network, now, major, next }: { stop: UpcomingStop; netw
           </span>
         )}
       </div>
-      <span className="vc-stop-time">{formatEta(stop.time, now, stop.estimated)}</span>
+      <span className="vc-stop-time">
+        {stop.atPlatform ? 'à quai' : formatEta(stop.time, now, stop.estimated)}
+        {terminus && !stop.atPlatform && <span className="vc-stop-clock"> · {stop.estimated ? '~' : ''}{clockTime(stop.time)}</span>}
+      </span>
     </li>
   );
 }
@@ -63,7 +67,7 @@ export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onO
   const destination = run.destination || terminus?.name || '';
   const hasGaps = aheadMin !== null || behindMin !== null;
   const row = (stop: UpcomingStop, i: number, major = false) => (
-    <StopRow key={`${stop.quay}-${i}`} stop={stop} network={network} now={now} major={major || i === 0} next={i === 0} />
+    <StopRow key={`${stop.quay}-${i}`} stop={stop} network={network} now={now} major={major || i === 0} next={i === 0} terminus={major && i > 0} />
   );
 
   return (

@@ -7,6 +7,8 @@ export interface UpcomingStop {
   quay: string;
   stationId: string;
   name: string;
+  /** The train is standing at this station right now (arrived, not yet left). */
+  atPlatform: boolean;
   /** Epoch ms. */
   time: number;
   /** true when computed from theoretical running times, beyond what the realtime feed gives. */
@@ -68,17 +70,21 @@ function continuation(run: VehicleRun, network: Network): { pattern: Pattern; fr
  */
 export function upcomingStops(run: VehicleRun, network: Network, now: number): UpcomingStop[] {
   const out: UpcomingStop[] = [];
-  const push = (quay: string, time: number, estimated: boolean) => {
+  const push = (quay: string, time: number, estimated: boolean, atPlatform = false) => {
     const q = network.quays[quay];
     if (!q) return;
     const name = network.stations[q.stationId]?.name ?? q.name;
-    out.push({ quay, stationId: q.stationId, name, time, estimated, correspondences: correspondences(network, q.stationId, run.lineId) });
+    out.push({ quay, stationId: q.stationId, name, time, estimated, atPlatform, correspondences: correspondences(network, q.stationId, run.lineId) });
   };
 
   run.stops.forEach((stop, k) => {
     if (k === 0 && run.hasPrevious) return;
     const time = timeOf(stop);
-    if (time !== null && time >= now - PAST_GRACE_MS) push(stop.quay, time, false);
+    const leaves = stop.dep ?? stop.arr;
+    if (time === null || leaves === null) return;
+    // Keep a station until the train leaves it (a long dwell is typical on the RER), not just 30 s after arrival.
+    if (leaves < now - PAST_GRACE_MS) return;
+    push(stop.quay, time, false, time <= now && now <= leaves);
   });
 
   const last = run.stops[run.stops.length - 1];
@@ -201,4 +207,9 @@ export function dataAgeText(fetchedAt: number, now: number): string {
 /** Gap to a neighbouring train in whole minutes ("4′"); under a minute reads "<1′" rather than "0′". */
 export function gapText(min: number): string {
   return min < 1 ? '<1′' : `${min}′`;
+}
+
+/** Clock time HH:MM in Paris time, for the terminus row. */
+export function clockTime(time: number): string {
+  return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).format(time);
 }

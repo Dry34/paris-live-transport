@@ -5,6 +5,7 @@ import { panIntoView, popupPadding } from '../lib/client/popupView';
 const stop = (n: number): UpcomingStop => ({
   quay: `q${n}`,
   stationId: `S${n}`,
+  atPlatform: false,
   name: `S${n}`,
   time: n * 60_000,
   estimated: false,
