@@ -27,6 +27,14 @@ describe('positionAt', () => {
     expect(p.nextQuay).toBe('B');
     expect(p.nextTime).toBe(t0 + 60_000);
   });
+  it('returns null (no throw) when the segment has no coordinates', () => {
+    const empty = { ...net, segments: { 'A>B': { coords: [], seconds: 60 } } } as unknown as Network;
+    expect(positionAt(run, empty, t0 + 30_000)).toBeNull();
+  });
+  it('uses the single point of a one-point segment', () => {
+    const one = { ...net, segments: { 'A>B': { coords: [[3, 4]], seconds: 60 } } } as unknown as Network;
+    expect(positionAt(run, one, t0 + 30_000)!.coord).toEqual([3, 4]);
+  });
   it('waiting before first departure', () => {
     const p = positionAt(run, net, t0 - 10_000)!;
     expect(p.state).toBe('waiting');

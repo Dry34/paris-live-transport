@@ -44,7 +44,7 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
     if (now >= dep && now < nextArr) {
       const segmentKey = `${stops[i].quay}>${next.quay}`;
       const seg = network.segments[segmentKey];
-      if (!seg || !network.quays[stops[i].quay] || !network.quays[next.quay]) return null;
+      if (!seg || seg.coords.length === 0 || !network.quays[stops[i].quay] || !network.quays[next.quay]) return null;
       const span = nextArr - dep;
       const fraction = span > 0 ? Math.min(1, Math.max(0, (now - dep) / span)) : 1;
       return {
