@@ -1,5 +1,5 @@
-import type { LngLat, Network, RunStop, VehicleRun } from '../types';
-import { bearingAtFraction, pointAtFraction } from '../geo';
+import type { LngLat, Mode, Network, RunStop, Segment, VehicleRun } from '../types';
+import { bearingAtFraction, cumulativeLengths, pointAtFraction } from '../geo';
 
 export type RunPosition = {
   coord: LngLat;
@@ -20,6 +20,23 @@ const GRACE_AFTER_END_MS = 60_000;
 export const PREVIOUS_WAIT_MS = 60_000;
 /** A train waiting at its first stop (terminus, no previous station) is only drawn this long before departure. */
 export const TERMINUS_WAIT_MS = 10 * 60_000;
+
+/**
+ * Fastest plausible average speed (km/h) between two stops, per mode. A train whose section would need more
+ * is hidden until its position is consistent again, rather than drawn racing across the map.
+ */
+export const MAX_SPEED_KMH: Record<Mode, number> = { metro: 100, tram: 90, rer: 180, transilien: 180 };
+
+const segmentLengths = new WeakMap<Segment, number>();
+/** Length (m) of a segment's polyline, computed once per segment object. */
+function segmentLength(seg: Segment): number {
+  let len = segmentLengths.get(seg);
+  if (len === undefined) {
+    len = seg.coords.length < 2 ? 0 : cumulativeLengths(seg.coords)[seg.coords.length - 1];
+    segmentLengths.set(seg, len);
+  }
+  return len;
+}
 
 const arrOf = (s: RunStop): number | null => s.arr ?? s.dep;
 const depOf = (s: RunStop): number | null => s.dep ?? s.arr;
@@ -69,6 +86,9 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
       const seg = network.segments[segmentKey];
       if (!seg || seg.coords.length === 0 || !network.quays[stops[i].quay] || !network.quays[next.quay]) return null;
       const span = nextArr - dep;
+      const mode = network.lines?.[run.lineId]?.mode;
+      const cap = mode ? MAX_SPEED_KMH[mode] : undefined;
+      if (cap !== undefined && span > 0 && (segmentLength(seg) / (span / 1000)) * 3.6 > cap) return null;
       const fraction = span > 0 ? Math.min(1, Math.max(0, (now - dep) / span)) : 1;
       return {
         coord: pointAtFraction(seg.coords, fraction),
