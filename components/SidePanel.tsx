@@ -1,9 +1,8 @@
 'use client';
 import { useEffect, useState, type Ref } from 'react';
-import type { Disruption, Mode, Network, Snapshot } from '@/lib/types';
-import { LineBadge, MODE_LABELS, lineName } from './LineBadge';
-
-const MODES: Mode[] = ['metro', 'rer', 'tram', 'transilien'];
+import type { Disruption, Network, Snapshot } from '@/lib/types';
+import { LineGrid } from './LineGrid';
+import { LineSheet } from './LineSheet';
 
 export interface SidePanelProps {
   network: Network | null;
@@ -34,14 +33,13 @@ function useNow(everyMs: number): number {
   return now;
 }
 
-export function SidePanel({ network, snapshot, disruptions, shownCount, focusLineId, onFocusLine, panelRef }: SidePanelProps) {
+export function SidePanel({ network, snapshot, disruptions, shownCount, focusLineId, onFocusLine, onStationSelect, panelRef }: SidePanelProps) {
   const [open, setOpen] = useState(true);
   const now = useNow(1000);
   // On phones the panel is a bottom sheet: start folded so the map stays visible.
   useEffect(() => {
     if (window.matchMedia('(max-width: 720px)').matches) setOpen(false);
   }, []);
-  const lines = network ? Object.values(network.lines) : [];
 
   return (
     <section ref={panelRef} className={`side-panel${open ? ' is-open' : ''}`} aria-label="Lignes et état du trafic">
@@ -70,57 +68,20 @@ export function SidePanel({ network, snapshot, disruptions, shownCount, focusLin
       </header>
 
       <div id="side-body" className="side-body" hidden={!open}>
-        {MODES.map((mode) => {
-          const modeLines = lines.filter((l) => l.mode === mode);
-          if (modeLines.length === 0) return null;
-          return (
-            <div key={mode} className="mode-group">
-              <div className="mode-head">
-                <h2>{MODE_LABELS[mode]}</h2>
-              </div>
-              <div className="line-grid">
-                {modeLines.map((l) => {
-                  const focused = l.id === focusLineId;
-                  return (
-                    <button
-                      key={l.id}
-                      type="button"
-                      className="line-toggle"
-                      aria-pressed={focused}
-                      aria-label={focused ? `${lineName(l)} : revenir à toutes les lignes` : `Afficher seulement la ligne ${lineName(l)}`}
-                      onClick={() => onFocusLine(focused ? null : l.id)}
-                    >
-                      <LineBadge line={l} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-
-        <div className="disruptions">
-          <h2>Info trafic</h2>
-          {disruptions.length === 0 ? (
-            <p className="disruptions-empty">Aucune perturbation signalée sur ces lignes.</p>
-          ) : (
-            <ul>
-              {disruptions.map((d) => (
-                <li key={d.id} className={`disruption sev-${d.severity.toLowerCase()}`}>
-                  <details>
-                    <summary>
-                      <span className="disruption-lines">
-                        {d.lineIds.map((id) => network?.lines[id] && <LineBadge key={id} line={network.lines[id]} size="sm" />)}
-                      </span>
-                      <span className="disruption-title">{d.title}</span>
-                    </summary>
-                    <p className="disruption-message">{d.message}</p>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {network && focusLineId && network.lines[focusLineId] ? (
+          <LineSheet
+            key={focusLineId}
+            network={network}
+            snapshot={snapshot}
+            disruptions={disruptions}
+            lineId={focusLineId}
+            now={now}
+            onBack={() => onFocusLine(null)}
+            onStationSelect={onStationSelect}
+          />
+        ) : (
+          <LineGrid network={network} snapshot={snapshot} disruptions={disruptions} now={now} onSelect={onFocusLine} />
+        )}
 
         <p className="side-foot">
           Positions estimées à partir des horaires temps réel d’Île-de-France Mobilités. Touchez une rame ou une station pour le détail.
