@@ -44,3 +44,41 @@ Created: lib/realtime/{schedule,prim-client,store,poller}.ts, tests/{schedule,po
 - Replay does not trim passed calls. That follows the brief literally ("reconstruit avec le même décalage"). Runs keep their stops in the past, so Task 7's interpolation has to handle runs whose times are all past (the fixture runs out after a while).
 - `fetchedAt` = clock time at the start of the call, not the SIRI ResponseTimestamp. This keeps it consistent with the restart rule.
 - Extra exports beyond the brief: `getNetwork()` (Task 6 needs the network for departuresForStation), `callsToday()` in store.ts, and `Poller.tick()` (used by the tests).
+
+---
+
+## Fix round 1
+
+Base for the round: 72f86f7ae1b1f8ac35f529e4e1801f5cc0f52430 (task range 951d09a..HEAD).
+
+### Findings, as verified
+1. **Who calls `getPoller().start()`**: this is not a Task 5 defect. task-6-brief.md line 12 says: "Les routes appellent `getPoller().start()` (idempotent)." Task 6 creates the routes. Task 6 depends on `start()` being idempotent and on `getPoller()` being a singleton, and neither had a test (the review lists this gap under Minor). **Fix:** I added two tests to `tests/poller.test.ts`:
+   - `start() est idempotent`: calls `start()` three times on a live poller with a fake `fetchEt`, then checks there was exactly 1 PRIM call, 1 recorded in budget.json, and exactly 1 polling timer scheduled.
+   - `getPoller() renvoie toujours la même instance`: checks the same instance is returned and stored on `globalThis.__ltpPoller`.
+2. **Disruption polling not wired**: this is not a Task 5 defect. Step 4 of task-6-brief.md line 16 says: "brancher le polling des perturbations dans le poller (5 min, même budget/fenêtre ; replay → fixture)". Task 5 already provides what Task 6 needs: the `fetchDisruptions` injectable dependency, `CallKind 'disruptions'` in the budget, and `loadDisruptions` / `saveDisruptions`. No code change; this is left to Task 6 as planned.
+3. **Suite not re-run by the reviewer**: I re-ran it (output below).
+
+### TDD evidence
+The new tests describe behavior that already exists, so they passed on the first run. To show they can fail, I ran a mutation check: I removed `if (this.started) return;` from `start()`.
+```
+npx vitest run tests/poller.test.ts   (guard removed)
+ FAIL  tests/poller.test.ts > Poller.start / getPoller ... > start() est idempotent ...
+AssertionError: expected 3 to be 1 // Object.is equality
+      Tests  1 failed | 10 passed (11)
+```
+(The first version of the test only checked the call count, and it still passed under this mutation. Each loop records the call and sets `lastAttempt` synchronously, so duplicate loops never call PRIM twice. They do schedule duplicate timers. That is why the test now checks `vi.getTimerCount()`.)
+After restoring the guard:
+```
+npx vitest run tests/poller.test.ts
+      Tests  11 passed (11)
+npm test
+      Tests  73 passed (73)   (10 files)
+npx tsc --noEmit -> OK ; npx eslint lib tests -> OK
+```
+No live PRIM calls were made and PRIM_LIVE was not set.
+
+### Files changed
+- tests/poller.test.ts (2 tests added, plus the `getPoller` import). No production code changed.
+
+### Remaining concerns
+- The Minor review items are still deferred: `failures` and `lastAttempt` are not persisted across restarts, `recordCall` is not atomic across several processes, a `saveSnapshot` disk error is counted as a PRIM failure, and a cached snapshot has no age check. None of them was in this round's findings list.

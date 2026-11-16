@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { Poller } from '@/lib/realtime/poller';
+import { getPoller, Poller } from '@/lib/realtime/poller';
 import { PrimError } from '@/lib/realtime/prim-client';
 import { loadBudget, loadSnapshot, recordCall, saveSnapshot } from '@/lib/realtime/store';
 import type { VehicleRun } from '@/lib/types';
@@ -142,5 +142,34 @@ describe('Poller (replay)', () => {
     expect(calls).toBe(0);
     expect(p.snapshot()!.fetchedAt).toBe(clock);
     expect(loadBudget(dir).calls).toEqual({ et: 0, disruptions: 0 });
+  });
+});
+
+describe('Poller.start / getPoller (contrat utilisé par les routes de la tâche 6)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    delete globalThis.__ltpPoller;
+  });
+
+  it('start() est idempotent : un seul appel PRIM même si appelé plusieurs fois', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    const p = new Poller({ now, fetchEt: okFetch, dir, live: true });
+    p.start();
+    p.start();
+    p.start();
+    await vi.waitFor(() => expect(p.snapshot()?.source).toBe('live'));
+    expect(calls).toBe(1);
+    expect(loadBudget(dir).calls.et).toBe(1);
+    // Une seule boucle de polling programmée (pas une par appel à start()).
+    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(1));
+    await new Promise((r) => setImmediate(r));
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('getPoller() renvoie toujours la même instance (globalThis)', () => {
+    delete globalThis.__ltpPoller;
+    const a = getPoller();
+    expect(getPoller()).toBe(a);
+    expect(globalThis.__ltpPoller).toBe(a);
   });
 });
