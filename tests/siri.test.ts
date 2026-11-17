@@ -184,7 +184,7 @@ describe('mission, numéro de train et longueur', () => {
     const rail = parseEstimatedTimetable(sample).journeys.filter((x) => x.operator === 'SNCF');
     expect(rail.length).toBeGreaterThan(0);
     for (const k of ['mission', 'trainNumber', 'length'] as const) {
-      expect(rail.filter((x) => x[k]).length / rail.length).toBeGreaterThan(0.9);
+      expect(rail.filter((x) => x[k]).length).toBe(rail.length);
     }
   });
 });
