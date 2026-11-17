@@ -27,6 +27,8 @@ export interface RollingStockModel {
   photo: StockPhoto | null;
   /** Units usually coupled when the feed gives no length (e.g. RER A/B always run as two units). */
   defaultUnits?: 1 | 2;
+  /** Side-view drawing (public/ path) shown instead of the generated profile. */
+  sprite?: string;
 }
 
 const GLASS = '#1b2230';
@@ -66,7 +68,7 @@ const LIVERIES = {
 
 export const MODELS: Record<string, RollingStockModel> = {
   'mp05': {
-    id: 'mp05', name: 'MP 05', mode: 'metro', cars: 6, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.stif,
+    id: 'mp05', sprite: '/rolling-stock/mp05.png', name: 'MP 05', mode: 'metro', cars: 6, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.stif,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/MP05_RATP_STIF_Esplanade.jpg/500px-MP05_RATP_STIF_Esplanade.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MP05_RATP_STIF_Esplanade.jpg',
@@ -75,7 +77,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mf01': {
-    id: 'mf01', name: 'MF 01', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.stifDoors,
+    id: 'mf01', sprite: '/rolling-stock/mf01.png', name: 'MF 01', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.stifDoors,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/141012_Paris_Stalingrad_IMG_5848.JPG/500px-141012_Paris_Stalingrad_IMG_5848.JPG',
       page: 'https://commons.wikimedia.org/wiki/File:141012_Paris_Stalingrad_IMG_5848.JPG',
@@ -84,7 +86,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mf67': {
-    id: 'mf67', name: 'MF 67', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.stifDoors,
+    id: 'mf67', sprite: '/rolling-stock/mf67.png', name: 'MF 67', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.stifDoors,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/MF67_RATP_Ligne_12.jpg/500px-MF67_RATP_Ligne_12.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MF67_RATP_Ligne_12.jpg',
@@ -93,7 +95,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mf67-3': {
-    id: 'mf67-3', name: 'MF 67', mode: 'metro', cars: 3, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.stifDoors,
+    id: 'mf67-3', sprite: '/rolling-stock/mf67.png', name: 'MF 67', mode: 'metro', cars: 3, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.stifDoors,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/MF67_D_RATP_14023_14093.jpg/500px-MF67_D_RATP_14023_14093.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MF67_D_RATP_14023_14093.jpg',
@@ -102,7 +104,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mp89-ca': {
-    id: 'mp89-ca', name: 'MP 89 CA', mode: 'metro', cars: 6, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.idfmBlue,
+    id: 'mp89-ca', sprite: '/rolling-stock/mp89.png', name: 'MP 89 CA', mode: 'metro', cars: 6, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.idfmBlue,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Cit%C3%A9_%28Paris_m%C3%A9tro%29_MP_89_CA_01.jpg/500px-Cit%C3%A9_%28Paris_m%C3%A9tro%29_MP_89_CA_01.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Cit%C3%A9_(Paris_m%C3%A9tro)_MP_89_CA_01.jpg',
@@ -111,7 +113,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mp89-cc': {
-    id: 'mp89-cc', name: 'MP 89 CC', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.mp89cc,
+    id: 'mp89-cc', sprite: '/rolling-stock/mp89.png', name: 'MP 89 CC', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.mp89cc,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/MP_89_ligne_6.jpg/500px-MP_89_ligne_6.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MP_89_ligne_6.jpg',
@@ -120,7 +122,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mf77': {
-    id: 'mf77', name: 'MF 77', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.idfmBlue,
+    id: 'mf77', sprite: '/rolling-stock/mf77.png', name: 'MF 77', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.idfmBlue,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/MF77_085_Censier-Daubenton.jpg/500px-MF77_085_Censier-Daubenton.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MF77_085_Censier-Daubenton.jpg',
@@ -129,7 +131,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mf88': {
-    id: 'mf88', name: 'MF 88', mode: 'metro', cars: 3, levels: 1, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.stif,
+    id: 'mf88', sprite: '/rolling-stock/mf88.png', name: 'MF 88', mode: 'metro', cars: 3, levels: 1, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.stif,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/MF_88_at_Pr%C3%A9_Saint-Gervais_Station%2C_Paris_19e_20140427.jpg/500px-MF_88_at_Pr%C3%A9_Saint-Gervais_Station%2C_Paris_19e_20140427.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MF_88_at_Pr%C3%A9_Saint-Gervais_Station,_Paris_19e_20140427.jpg',
@@ -138,7 +140,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mf19': {
-    id: 'mf19', name: 'MF 19', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.mf19,
+    id: 'mf19', sprite: '/rolling-stock/mf19.png', name: 'MF 19', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.mf19,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/MF_19_n%C2%B0006_-_Od%C3%A9on.jpg/500px-MF_19_n%C2%B0006_-_Od%C3%A9on.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MF_19_n%C2%B0006_-_Od%C3%A9on.jpg',
@@ -147,7 +149,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mp14-cc': {
-    id: 'mp14-cc', name: 'MP 14 CC', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.idfmBlue,
+    id: 'mp14-cc', sprite: '/rolling-stock/mp14.png', name: 'MP 14 CC', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.idfmBlue,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/MP_14_-_Coteaux_Beauclair_%281%29.jpg/500px-MP_14_-_Coteaux_Beauclair_%281%29.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MP_14_-_Coteaux_Beauclair_(1).jpg',
@@ -156,7 +158,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mp14-ca-6': {
-    id: 'mp14-ca-6', name: 'MP 14 CA', mode: 'metro', cars: 6, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.idfmBlue,
+    id: 'mp14-ca-6', sprite: '/rolling-stock/mp14.png', name: 'MP 14 CA', mode: 'metro', cars: 6, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.idfmBlue,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/MP_14_CA_51_%C3%A0_Cit%C3%A9_%28Ligne_4%29.jpg/500px-MP_14_CA_51_%C3%A0_Cit%C3%A9_%28Ligne_4%29.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MP_14_CA_51_%C3%A0_Cit%C3%A9_(Ligne_4).jpg',
@@ -165,7 +167,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mp14-ca-8': {
-    id: 'mp14-ca-8', name: 'MP 14 CA', mode: 'metro', cars: 8, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.idfmBlue,
+    id: 'mp14-ca-8', sprite: '/rolling-stock/mp14.png', name: 'MP 14 CA', mode: 'metro', cars: 8, levels: 1, doorsPerCar: 3, nose: 'sloped', livery: LIVERIES.idfmBlue,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/MP14_RATP_Ligne_14.jpg/500px-MP14_RATP_Ligne_14.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MP14_RATP_Ligne_14.jpg',

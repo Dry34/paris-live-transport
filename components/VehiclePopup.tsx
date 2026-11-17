@@ -119,6 +119,9 @@ export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onO
             </a>
           </figcaption>
         </figure>
+      ) : model?.sprite ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="vc-sprite" src={model.sprite} alt={`${model.name}, vue de profil`} />
       ) : (
         <TrainIllustration mode={line.mode} color={line.color} model={model} units={runUnits(run, model)} />
       )}

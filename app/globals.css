@@ -659,3 +659,12 @@ button.vc-model[aria-pressed='true'] { text-decoration-style: solid; text-decora
 @media (prefers-reduced-motion: reduce) {
   .side-toggle svg { transition: none; }
 }
+
+.vc-sprite {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72px;
+  object-fit: contain;
+  margin: 6px 0 2px;
+}

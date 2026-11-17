@@ -89,3 +89,13 @@ describe('catalogue du matériel roulant', () => {
     expect(stockLabel([])).toBeNull();
   });
 });
+
+describe('metro sprites', () => {
+  it('point to files that exist in public/', async () => {
+    const { existsSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const withSprite = Object.values(MODELS).filter((m) => m.sprite);
+    expect(withSprite.length).toBe(12);
+    for (const m of withSprite) expect(existsSync(join(process.cwd(), 'public', m.sprite!))).toBe(true);
+  });
+});
