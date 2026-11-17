@@ -176,7 +176,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mi09': {
-    id: 'mi09', defaultUnits: 2, name: 'MI 09', mode: 'rer', cars: 5, levels: 2, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.stif,
+    id: 'mi09', sprite: '/rolling-stock/mi09.png', defaultUnits: 2, name: 'MI 09', mode: 'rer', cars: 5, levels: 2, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.stif,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_%281%29.jpg/500px-MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_%281%29.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_(1).jpg',
@@ -194,7 +194,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mi79': {
-    id: 'mi79', defaultUnits: 2, name: 'MI 79', mode: 'rer', cars: 4, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.mi79,
+    id: 'mi79', sprite: '/rolling-stock/mi79.png', defaultUnits: 2, name: 'MI 79', mode: 'rer', cars: 4, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.mi79,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Mi79_renov%C3%A9_bourg_la_reine.jpg/500px-Mi79_renov%C3%A9_bourg_la_reine.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Mi79_renov%C3%A9_bourg_la_reine.jpg',
@@ -212,7 +212,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z5600': {
-    id: 'z5600', name: 'Z 5600', mode: 'rer', cars: 6, levels: 2, doorsPerCar: 2, nose: 'flat', livery: LIVERIES.carmillon,
+    id: 'z5600', sprite: '/rolling-stock/z2n.png', name: 'Z 5600', mode: 'rer', cars: 6, levels: 2, doorsPerCar: 2, nose: 'flat', livery: LIVERIES.carmillon,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Z5669_%2835T%29_%C3%A0_Vitry_par_Cramos.JPG/500px-Z5669_%2835T%29_%C3%A0_Vitry_par_Cramos.JPG',
       page: 'https://commons.wikimedia.org/wiki/File:Z5669_(35T)_%C3%A0_Vitry_par_Cramos.JPG',
@@ -221,7 +221,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z8800': {
-    id: 'z8800', name: 'Z 8800', mode: 'rer', cars: 4, levels: 2, doorsPerCar: 2, nose: 'flat', livery: LIVERIES.carmillon,
+    id: 'z8800', sprite: '/rolling-stock/z2n.png', name: 'Z 8800', mode: 'rer', cars: 4, levels: 2, doorsPerCar: 2, nose: 'flat', livery: LIVERIES.carmillon,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Z_8800_in_Choisy-le-Roi%2C_2019.jpg/500px-Z_8800_in_Choisy-le-Roi%2C_2019.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Z_8800_in_Choisy-le-Roi,_2019.jpg',
@@ -230,7 +230,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z20500': {
-    id: 'z20500', name: 'Z 20500', mode: 'rer', cars: 4, levels: 2, doorsPerCar: 2, nose: 'flat', livery: LIVERIES.idfmSncf,
+    id: 'z20500', sprite: '/rolling-stock/z2n.png', name: 'Z 20500', mode: 'rer', cars: 4, levels: 2, doorsPerCar: 2, nose: 'flat', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Z_20500_IDF_Mobilit%C3%A9s_Ligne_P.jpg/500px-Z_20500_IDF_Mobilit%C3%A9s_Ligne_P.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Z_20500_IDF_Mobilit%C3%A9s_Ligne_P.jpg',
@@ -239,7 +239,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z20900': {
-    id: 'z20900', name: 'Z 20900', mode: 'rer', cars: 4, levels: 2, doorsPerCar: 2, nose: 'sloped', livery: LIVERIES.idfmSncf,
+    id: 'z20900', sprite: '/rolling-stock/z2n.png', name: 'Z 20900', mode: 'rer', cars: 4, levels: 2, doorsPerCar: 2, nose: 'sloped', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Z_20900_du_RER_C_-_Transilien_SNCF.jpg/500px-Z_20900_du_RER_C_-_Transilien_SNCF.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Z_20900_du_RER_C_-_Transilien_SNCF.jpg',
@@ -266,7 +266,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'regio2n': {
-    id: 'regio2n', name: 'Regio 2N (Z 57000)', mode: 'transilien', cars: 8, levels: 2, doorsPerCar: 1, nose: 'sloped', livery: LIVERIES.idfmSncf,
+    id: 'regio2n', sprite: '/rolling-stock/regio2n.png', name: 'Regio 2N (Z 57000)', mode: 'transilien', cars: 8, levels: 2, doorsPerCar: 1, nose: 'sloped', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Z_57000%2C_Livr%C3%A9e_%C3%8Ele-de-France_Mobilit%C3%A9s_Regio2n.jpg/500px-Z_57000%2C_Livr%C3%A9e_%C3%8Ele-de-France_Mobilit%C3%A9s_Regio2n.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Z_57000,_Livr%C3%A9e_%C3%8Ele-de-France_Mobilit%C3%A9s_Regio2n.jpg',
@@ -275,7 +275,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z50000-8': {
-    id: 'z50000-8', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 8, levels: 1, doorsPerCar: 1, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z50000-8', sprite: '/rolling-stock/z50000.png', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 8, levels: 1, doorsPerCar: 1, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/NAT_Z50000_%2802H%2C_livr%C3%A9e_IDFM%29_%C3%A0_Champagne-sur-Oise.jpg/500px-NAT_Z50000_%2802H%2C_livr%C3%A9e_IDFM%29_%C3%A0_Champagne-sur-Oise.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:NAT_Z50000_(02H,_livr%C3%A9e_IDFM)_%C3%A0_Champagne-sur-Oise.jpg',
@@ -284,7 +284,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z50000-7': {
-    id: 'z50000-7', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 7, levels: 1, doorsPerCar: 1, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z50000-7', sprite: '/rolling-stock/z50000.png', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 7, levels: 1, doorsPerCar: 1, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Francilien_Z_50000_n%C2%B0266L_sur_la_ligne_J_du_Transilien_%C3%A0_destination_de_Paris_Saint_Lazare_en_gare_de_Pontoise.jpg/500px-Francilien_Z_50000_n%C2%B0266L_sur_la_ligne_J_du_Transilien_%C3%A0_destination_de_Paris_Saint_Lazare_en_gare_de_Pontoise.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Francilien_Z_50000_n%C2%B0266L_sur_la_ligne_J_du_Transilien_%C3%A0_destination_de_Paris_Saint_Lazare_en_gare_de_Pontoise.jpg',
@@ -320,7 +320,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'citadis-402': {
-    id: 'citadis-402', name: 'Citadis 402', mode: 'tram', cars: 7, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.ratpTram,
+    id: 'citadis-402', sprite: '/rolling-stock/citadis-402.png', name: 'Citadis 402', mode: 'tram', cars: 7, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.ratpTram,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Le_Tramway_parisien%2C_septembre_2014.jpg/500px-Le_Tramway_parisien%2C_septembre_2014.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Le_Tramway_parisien,_septembre_2014.jpg',
@@ -329,7 +329,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'citadis-405': {
-    id: 'citadis-405', name: 'Citadis 405', mode: 'tram', cars: 7, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
+    id: 'citadis-405', sprite: '/rolling-stock/citadis-405.png', name: 'Citadis 405', mode: 'tram', cars: 7, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Citadis_405_n%C2%B0911_%C3%A0_Porte_de_Choisy_par_Cramos.JPG/500px-Citadis_405_n%C2%B0911_%C3%A0_Porte_de_Choisy_par_Cramos.JPG',
       page: 'https://commons.wikimedia.org/wiki/File:Citadis_405_n%C2%B0911_%C3%A0_Porte_de_Choisy_par_Cramos.JPG',
