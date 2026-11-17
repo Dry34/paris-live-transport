@@ -1,5 +1,5 @@
 import type { LngLat, Mode, Network, RunStop, Segment, VehicleRun } from '../types';
-import { bearingAtFraction, cumulativeLengths, pointAtFraction } from '../geo';
+import { bearingAtFraction, cumulativeLengths, distanceM, pointAtFraction } from '../geo';
 
 export type RunPosition = {
   coord: LngLat;
@@ -141,28 +141,44 @@ function progressOf(run: VehicleRun, p: RunPosition): number | null {
   return p.segmentKey !== null ? i + Math.min(p.fraction, 0.999) : i;
 }
 
+/** A train that would jump further than this (m) in one step disappears and reappears at its new place. */
+export const JUMP_HIDE_M = 150;
+/** How long such a train stays hidden (ms). */
+export const REAPPEAR_MS = 1500;
+
 /**
- * Keeps trains from jumping backwards when a fresher snapshot says they are running late: the train stays
- * where it is shown (at a station, it waits there) until the new estimate catches up, for at most
- * MAX_HOLD_MS; after that, or if the shown position is no longer on the run, it takes the fresh position.
+ * Keeps trains from teleporting when a fresher snapshot moves their estimate:
+ * - put behind where it is shown (running late): the train stays where it is (at a station, it waits there)
+ *   until the new estimate catches up, for at most MAX_HOLD_MS; after that, or if the shown position is no
+ *   longer on the run, it takes the fresh position;
+ * - put far ahead (> JUMP_HIDE_M): it disappears for REAPPEAR_MS and reappears at the right place, instead of
+ *   sliding or racing there. `keepVisible` (the selected train, whose card must stay open) skips the hiding.
  */
-export function createSmoother(): (run: VehicleRun, p: RunPosition | null, now: number) => RunPosition | null {
-  const last = new Map<string, { pos: RunPosition; heldSince: number | null }>();
-  return (run, p, now) => {
+export function createSmoother(): (run: VehicleRun, p: RunPosition | null, now: number, keepVisible?: boolean) => RunPosition | null {
+  const last = new Map<string, { pos: RunPosition; heldSince: number | null; hiddenUntil: number }>();
+  return (run, p, now, keepVisible = false) => {
     if (!p) {
       last.delete(run.id);
       return null;
     }
     const prev = last.get(run.id);
     if (prev) {
+      if (now < prev.hiddenUntil && !keepVisible) {
+        prev.pos = p;
+        return null;
+      }
       const shown = progressOf(run, prev.pos);
       const fresh = progressOf(run, p);
       if (shown !== null && fresh !== null && fresh < shown) {
         prev.heldSince ??= now;
         if (now - prev.heldSince <= MAX_HOLD_MS) return prev.pos;
       }
+      if (!keepVisible && now >= prev.hiddenUntil && distanceM(prev.pos.coord, p.coord) > JUMP_HIDE_M) {
+        last.set(run.id, { pos: p, heldSince: null, hiddenUntil: now + REAPPEAR_MS });
+        return null;
+      }
     }
-    last.set(run.id, { pos: p, heldSince: null });
+    last.set(run.id, { pos: p, heldSince: null, hiddenUntil: 0 });
     return p;
   };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Network, VehicleRun } from '../lib/types';
-import { positionAt, createSmoother, MAX_HOLD_MS, type RunPosition } from '../lib/client/interpolate';
+import { positionAt, createSmoother, MAX_HOLD_MS, REAPPEAR_MS, type RunPosition } from '../lib/client/interpolate';
 
 const net = {
   quays: {
@@ -79,9 +79,9 @@ describe('createSmoother', () => {
   // Run A -> B -> C; positions expressed along it.
   const run3 = (stops = ['A', 'B', 'C']): VehicleRun => mk(stops.map((quay) => ({ quay, arr: 0, dep: 0 })));
   const moving = (from: string, to: string, fraction: number): RunPosition => ({
-    coord: [fraction, 0], state: 'moving', segmentKey: `${from}>${to}`, fraction, nextQuay: to, nextTime: 0, bearing: 0,
+    coord: [fraction * 0.0001, 0], state: 'moving', segmentKey: `${from}>${to}`, fraction, nextQuay: to, nextTime: 0, bearing: 0,
   });
-  const at = (quay: string): RunPosition => ({ coord: [9, 9], state: 'dwelling', segmentKey: null, fraction: 0, nextQuay: quay, nextTime: 0, bearing: 0 });
+  const at = (quay: string): RunPosition => ({ coord: [0, 0], state: 'dwelling', segmentKey: null, fraction: 0, nextQuay: quay, nextTime: 0, bearing: 0 });
 
   it('never goes backwards on the same segment', () => {
     const s = createSmoother();
@@ -113,6 +113,23 @@ describe('createSmoother', () => {
     const s = createSmoother();
     s(run3(['X', 'A', 'B']), moving('X', 'A', 0.5), 0);
     expect(s(run3(), moving('A', 'B', 0.2), 1000)!.segmentKey).toBe('A>B');
+  });
+  it('hides a train that a fresher estimate puts far ahead, then shows it at its new place', () => {
+    const s = createSmoother();
+    const far = (from: string, to: string, f: number): RunPosition => ({ ...moving(from, to, f), coord: [0, f * 0.01] });
+    s(run3(), far('A', 'B', 0.1), 0);
+    // 0.1 -> 0.9 of a 1.1 km section: ~890 m ahead in one frame.
+    expect(s(run3(), far('A', 'B', 0.9), 100)).toBeNull();
+    expect(s(run3(), far('A', 'B', 0.92), 100 + REAPPEAR_MS - 1)).toBeNull();
+    expect(s(run3(), far('A', 'B', 0.95), 100 + REAPPEAR_MS)).toMatchObject({ fraction: 0.95 });
+    // Normal progress is never hidden.
+    expect(s(run3(), far('A', 'B', 0.96), 200 + REAPPEAR_MS)).toMatchObject({ fraction: 0.96 });
+  });
+  it('keeps the selected train visible through a jump', () => {
+    const s = createSmoother();
+    const far = (f: number): RunPosition => ({ ...moving('A', 'B', f), coord: [0, f * 0.01] });
+    s(run3(), far(0.1), 0, true);
+    expect(s(run3(), far(0.9), 100, true)).toMatchObject({ fraction: 0.9 });
   });
   it('isolates runs and passes null through', () => {
     const s = createSmoother();
