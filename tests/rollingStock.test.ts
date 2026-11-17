@@ -95,7 +95,7 @@ describe('side-view sprites', () => {
     const { existsSync } = await import('node:fs');
     const { join } = await import('node:path');
     const withSprite = Object.values(MODELS).filter((m) => m.sprite);
-    expect(withSprite.length).toBe(23);
+    expect(withSprite.length).toBe(32);
     for (const m of withSprite) expect(existsSync(join(process.cwd(), 'public', m.sprite!))).toBe(true);
   });
 });

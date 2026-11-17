@@ -248,7 +248,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z58000': {
-    id: 'z58000', name: 'RER NG (Z 58000)', mode: 'rer', cars: 6, levels: 2, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z58000', sprite: '/rolling-stock/rer-ng.png', name: 'RER NG (Z 58000)', mode: 'rer', cars: 6, levels: 2, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/RER_NG_porte_maillot.jpg/500px-RER_NG_porte_maillot.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:RER_NG_porte_maillot.jpg',
@@ -257,7 +257,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z58500': {
-    id: 'z58500', name: 'RER NG (Z 58500)', mode: 'rer', cars: 7, levels: 2, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z58500', sprite: '/rolling-stock/rer-ng.png', name: 'RER NG (Z 58500)', mode: 'rer', cars: 7, levels: 2, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/RER_NG_009M.jpg/500px-RER_NG_009M.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:RER_NG_009M.jpg',
@@ -293,7 +293,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'b82500': {
-    id: 'b82500', name: 'AGC (B 82500)', mode: 'transilien', cars: 4, levels: 1, doorsPerCar: 2, nose: 'sloped', livery: LIVERIES.transilien,
+    id: 'b82500', sprite: '/rolling-stock/agc.png', name: 'AGC (B 82500)', mode: 'transilien', cars: 4, levels: 1, doorsPerCar: 2, nose: 'sloped', livery: LIVERIES.transilien,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/TransilienP_B82500_Paris-Est.jpg/500px-TransilienP_B82500_Paris-Est.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:TransilienP_B82500_Paris-Est.jpg',
@@ -302,7 +302,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'citadis-305': {
-    id: 'citadis-305', name: 'Citadis 305 (TW20)', mode: 'tram', cars: 5, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
+    id: 'citadis-305', sprite: '/rolling-stock/citadis-305.png', name: 'Citadis 305 (TW20)', mode: 'tram', cars: 5, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/TW20_%C3%A0_jean_rostand.jpg/500px-TW20_%C3%A0_jean_rostand.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:TW20_%C3%A0_jean_rostand.jpg',
@@ -311,7 +311,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'citadis-302': {
-    id: 'citadis-302', name: 'Citadis 302', mode: 'tram', cars: 5, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.ratpTram,
+    id: 'citadis-302', sprite: '/rolling-stock/citadis-402.png', name: 'Citadis 302', mode: 'tram', cars: 5, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.ratpTram,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Tramway_T2_Faubourg_de_l%27Arche_14-09-20.jpg/500px-Tramway_T2_Faubourg_de_l%27Arche_14-09-20.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Tramway_T2_Faubourg_de_l%27Arche_14-09-20.jpg',
@@ -356,7 +356,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'dualis-u53700': {
-    id: 'dualis-u53700', name: 'Citadis Dualis (U 53700)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
+    id: 'dualis-u53700', sprite: '/rolling-stock/dualis.png', name: 'Citadis Dualis (U 53700)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Citadis_Dualis_Aulnay.jpg/500px-Citadis_Dualis_Aulnay.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Citadis_Dualis_Aulnay.jpg',
@@ -365,7 +365,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'dualis-u53600': {
-    id: 'dualis-u53600', name: 'Citadis Dualis (U 53600)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.dualisMagenta,
+    id: 'dualis-u53600', sprite: '/rolling-stock/dualis.png', name: 'Citadis Dualis (U 53600)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.dualisMagenta,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/U_53600_%C3%A0_quai_au_terminus_d%27Epinay-sur-Seine.jpg/500px-U_53600_%C3%A0_quai_au_terminus_d%27Epinay-sur-Seine.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:U_53600_%C3%A0_quai_au_terminus_d%27Epinay-sur-Seine.jpg',
@@ -374,7 +374,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'dualis-u52600': {
-    id: 'dualis-u52600', name: 'Citadis Dualis (U 52600)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
+    id: 'dualis-u52600', sprite: '/rolling-stock/dualis.png', name: 'Citadis Dualis (U 52600)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/T12_-_Evry-CC_-_2023-12-16_-_IMG_0179.jpg/500px-T12_-_Evry-CC_-_2023-12-16_-_IMG_0179.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:T12_-_Evry-CC_-_2023-12-16_-_IMG_0179.jpg',
@@ -383,7 +383,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'dualis-u53800': {
-    id: 'dualis-u53800', name: 'Citadis Dualis (U 53800)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
+    id: 'dualis-u53800', sprite: '/rolling-stock/dualis.png', name: 'Citadis Dualis (U 53800)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Lisi%C3%A8re-Pereire_T13_Express_2022_01.jpg/500px-Lisi%C3%A8re-Pereire_T13_Express_2022_01.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Lisi%C3%A8re-Pereire_T13_Express_2022_01.jpg',
