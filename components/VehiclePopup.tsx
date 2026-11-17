@@ -1,6 +1,7 @@
 'use client';
-// Rich card of the selected train: where it goes, its coming stops up to the terminus, a side view in the line's
-// colours and a few running figures (speed, delay, data age, gaps to the trains ahead and behind).
+// Rich card of the selected train: where it goes, its coming stops up to the terminus, the line's rolling stock
+// (side view in its livery, model name opening a photo, SNCF mission and train number) and a few running figures
+// (speed, delay, data age, gaps to the trains ahead and behind).
 import { useState, type CSSProperties } from 'react';
 import type { Network, VehicleRun } from '@/lib/types';
 import type { RunPosition } from '@/lib/client/interpolate';
@@ -17,6 +18,8 @@ import {
   upcomingStops,
   type UpcomingStop,
 } from '@/lib/client/vehicleDetails';
+import { stockForLine, stockLabel } from '@/lib/rollingStock';
+import { missionText, runUnits } from '@/lib/client/trainProfile';
 import { LineBadge, lineName } from './LineBadge';
 import { TrainIllustration } from './TrainIllustration';
 
@@ -58,6 +61,8 @@ function StopRow({ stop, network, now, major, next, terminus = false }: { stop: 
 
 export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onOpenLine }: VehiclePopupProps) {
   const [expanded, setExpanded] = useState(false);
+  // Model whose photo is shown in place of the profile; the image is only requested once this is set.
+  const [photoOf, setPhotoOf] = useState<string | null>(null);
   const line = network.lines[run.lineId];
   const stops = upcomingStops(run, network, now);
   const { head, hidden, terminus } = cardRows(stops);
@@ -66,6 +71,12 @@ export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onO
   const { aheadMin, behindMin } = neighborGaps(run, runs, network, now);
   const destination = run.destination || terminus?.name || '';
   const hasGaps = aheadMin !== null || behindMin !== null;
+  const models = stockForLine(run.lineId);
+  const model = models[0] ?? null;
+  const modelName = stockLabel(models);
+  const photo = model?.photo ?? null;
+  const showPhoto = photo !== null && photoOf === model?.id;
+  const mission = missionText(run);
   const row = (stop: UpcomingStop, i: number, major = false) => (
     <StopRow key={`${stop.quay}-${i}`} stop={stop} network={network} now={now} major={major || i === 0} next={i === 0} terminus={major && i > 0} />
   );
@@ -97,7 +108,34 @@ export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onO
         <p className="vc-empty">Aucun arrêt à venir connu</p>
       )}
 
-      <TrainIllustration mode={line.mode} color={line.color} />
+      {showPhoto ? (
+        <figure className="vc-photo">
+          {/* Plain <img>: a Commons thumbnail, no next.config change and nothing fetched before the click. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.url} alt={`${model.name}, photo`} loading="lazy" />
+          <figcaption>
+            <a href={photo.page} target="_blank" rel="noopener noreferrer">
+              Photo : {photo.author}, {photo.license}
+            </a>
+          </figcaption>
+        </figure>
+      ) : (
+        <TrainIllustration mode={line.mode} color={line.color} model={model} units={runUnits(run)} />
+      )}
+      {(modelName || mission) && (
+        <p className="vc-stock">
+          {modelName &&
+            (photo ? (
+              <button type="button" className="vc-model" aria-pressed={showPhoto} title={showPhoto ? 'Revenir au profil' : 'Voir une photo'} onClick={() => setPhotoOf(showPhoto ? null : model.id)}>
+                {modelName}
+                <span className="sr-only">{showPhoto ? ' : revenir au profil' : ' : voir une photo'}</span>
+              </button>
+            ) : (
+              <span className="vc-model">{modelName}</span>
+            ))}
+          {mission && <span className="vc-mission">{mission}</span>}
+        </p>
+      )}
 
       <div className="vc-foot">
         <p className="vc-figures">
