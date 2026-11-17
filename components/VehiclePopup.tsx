@@ -112,7 +112,7 @@ export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onO
         <figure className="vc-photo">
           {/* Plain <img>: a Commons thumbnail, no next.config change and nothing fetched before the click. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt={`${model.name}, photo`} loading="lazy" />
+          <img src={photo.url} alt={`${model.name}, photo`} loading="lazy" onError={() => setPhotoOf(null)} />
           <figcaption>
             <a href={photo.page} target="_blank" rel="noopener noreferrer">
               Photo : {photo.author}, {photo.license}
@@ -120,13 +120,13 @@ export function VehiclePopup({ network, run, runs, position, fetchedAt, now, onO
           </figcaption>
         </figure>
       ) : (
-        <TrainIllustration mode={line.mode} color={line.color} model={model} units={runUnits(run)} />
+        <TrainIllustration mode={line.mode} color={line.color} model={model} units={runUnits(run, model)} />
       )}
       {(modelName || mission) && (
         <p className="vc-stock">
           {modelName &&
             (photo ? (
-              <button type="button" className="vc-model" aria-pressed={showPhoto} title={showPhoto ? 'Revenir au profil' : 'Voir une photo'} onClick={() => setPhotoOf(showPhoto ? null : model.id)}>
+              <button type="button" className="vc-model" aria-pressed={showPhoto} title={showPhoto ? 'Revenir au profil' : `Voir une photo (${model.name})`} onClick={() => setPhotoOf(showPhoto ? null : model.id)}>
                 {modelName}
                 <span className="sr-only">{showPhoto ? ' : revenir au profil' : ' : voir une photo'}</span>
               </button>

@@ -25,6 +25,8 @@ export interface RollingStockModel {
   nose: NoseShape;
   livery: Livery;
   photo: StockPhoto | null;
+  /** Units usually coupled when the feed gives no length (e.g. RER A/B always run as two units). */
+  defaultUnits?: 1 | 2;
 }
 
 const GLASS = '#1b2230';
@@ -172,7 +174,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mi09': {
-    id: 'mi09', name: 'MI 09', mode: 'rer', cars: 5, levels: 2, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.stif,
+    id: 'mi09', defaultUnits: 2, name: 'MI 09', mode: 'rer', cars: 5, levels: 2, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.stif,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_%281%29.jpg/500px-MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_%281%29.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_(1).jpg',
@@ -181,7 +183,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mi2n': {
-    id: 'mi2n', name: 'MI 2N Altéo', mode: 'rer', cars: 5, levels: 2, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.ratpRer,
+    id: 'mi2n', defaultUnits: 2, name: 'MI 2N Altéo', mode: 'rer', cars: 5, levels: 2, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.ratpRer,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/MI2N_%C3%A0_St_Maur.jpg/500px-MI2N_%C3%A0_St_Maur.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MI2N_%C3%A0_St_Maur.jpg',
@@ -190,7 +192,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mi79': {
-    id: 'mi79', name: 'MI 79', mode: 'rer', cars: 4, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.mi79,
+    id: 'mi79', defaultUnits: 2, name: 'MI 79', mode: 'rer', cars: 4, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.mi79,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Mi79_renov%C3%A9_bourg_la_reine.jpg/500px-Mi79_renov%C3%A9_bourg_la_reine.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Mi79_renov%C3%A9_bourg_la_reine.jpg',
@@ -199,7 +201,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mi84': {
-    id: 'mi84', name: 'MI 84', mode: 'rer', cars: 4, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.stif,
+    id: 'mi84', defaultUnits: 2, name: 'MI 84', mode: 'rer', cars: 4, levels: 1, doorsPerCar: 4, nose: 'flat', livery: LIVERIES.stif,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/MI84_R%C3%A9nov%C3%A9.jpg/500px-MI84_R%C3%A9nov%C3%A9.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MI84_R%C3%A9nov%C3%A9.jpg',

@@ -209,7 +209,9 @@ export function carOutline(car: ProfileCar, p: TrainProfile): string {
 }
 
 /** Number of coupled units: SNCF says « long » for a double unit. */
-export const runUnits = (run: Pick<VehicleRun, 'length'>): 1 | 2 => (run.length === 'long' ? 2 : 1);
+/** Units drawn: the feed's length when known (SNCF), else the model's usual formation (RER A/B run coupled). */
+export const runUnits = (run: Pick<VehicleRun, 'length'>, model?: Pick<RollingStockModel, 'defaultUnits'>): 1 | 2 =>
+  run.length === 'long' ? 2 : run.length === 'short' ? 1 : (model?.defaultUnits ?? 1);
 
 /** « QIWI · train 137594 », each part only when the feed gives it; null when neither is known (RATP runs). */
 export function missionText(run: Pick<VehicleRun, 'mission' | 'trainNumber'>): string | null {

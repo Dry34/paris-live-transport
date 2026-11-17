@@ -96,6 +96,8 @@ describe('vehicle card wording', () => {
     expect(runUnits({ length: 'long' })).toBe(2);
     expect(runUnits({ length: 'short' })).toBe(1);
     expect(runUnits({})).toBe(1);
+    expect(runUnits({}, { defaultUnits: 2 })).toBe(2);
+    expect(runUnits({ length: 'short' }, { defaultUnits: 2 })).toBe(1);
   });
 });
 
