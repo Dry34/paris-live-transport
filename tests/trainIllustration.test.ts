@@ -59,6 +59,16 @@ describe('trainProfile', () => {
     const p = trainProfile(MODELS['regio2n'], 2)!;
     expect(p.viewW).toBeLessThanOrEqual(PROFILE_MAX_W + 12);
   });
+
+  it('keeps every catalogue model within the card width, SNCF stock even as a long (double) train', () => {
+    for (const model of Object.values(MODELS)) {
+      // Only SNCF runs carry « long » (runUnits = 2); metro and tram runs are always one unit.
+      const unitCounts = model.mode === 'metro' || model.mode === 'tram' ? [1] : [1, 2];
+      for (const units of unitCounts) {
+        expect(trainProfile(model, units)!.viewW, `${model.id} x${units}`).toBeLessThanOrEqual(PROFILE_MAX_W + 12);
+      }
+    }
+  });
 });
 
 describe('TrainIllustration', () => {

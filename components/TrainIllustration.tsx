@@ -118,12 +118,11 @@ function Car({ car, p, clip }: { car: ProfileCar; p: TrainProfile; clip: string 
   const skirtY = y + h * 0.8;
   const maskBottom = y + (p.model.levels === 2 ? h * 0.56 : h * 0.66);
   const glassBottom = y + (p.model.levels === 2 ? h * 0.42 : h * 0.5);
-  // Cab ends: front mask framed in the band colour, windscreen inside.
+  // Cab ends: front mask framed in the band colour on its inner side and bottom, windscreen inside. Shapes run
+  // past the car end and the roof; the body clip trims them to the nose.
   const FRAME = 1.4;
   const maskW = cabLen - 1;
   const maskH = maskBottom - y;
-  // Cab ends: front mask framed in the band colour on its inner side and bottom, windscreen inside. Shapes run
-  // past the car end and the roof; the body clip trims them to the nose.
   const cabs = [
     ...(car.cabLeft ? [{ key: 'l', outer: car.x - 3, glass: car.x + 1 }] : []),
     ...(car.cabRight ? [{ key: 'r', outer: car.x + car.w - maskW, glass: car.x + car.w - maskW + 3 }] : []),

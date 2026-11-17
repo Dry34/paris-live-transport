@@ -96,8 +96,26 @@ export function trainProfile(model: RollingStockModel | null | undefined, units:
 
   const lengths = Array.from({ length: unitCount }, () => unitLengths(model)).flat();
   const gaps = (lengths.length - unitCount) * CAR_GAP + (unitCount - 1) * UNIT_GAP;
-  const natural = lengths.reduce((a, b) => a + b, 0);
-  const shrink = Math.min(1, (PROFILE_MAX_W - gaps - 2 * MARGIN) / natural);
+  // Smallest length of each car that still fits its cab ends and doors.
+  const minLens = lengths.map((_, k) => {
+    const i = k % model.cars;
+    const ends = (i === 0 ? cabLen : 3) + (i === model.cars - 1 ? cabLen : 3);
+    return ends + model.doorsPerCar * (doorW + 4);
+  });
+  // Shrink the cars to the card width; cars held at their minimum hand the rest of the shortening to the others.
+  const budget = PROFILE_MAX_W - gaps - 2 * MARGIN;
+  let shrink = 1;
+  for (let pass = 0; pass < lengths.length; pass++) {
+    let held = 0;
+    let free = 0;
+    lengths.forEach((len, k) => {
+      if (len * shrink <= minLens[k]) held += minLens[k];
+      else free += len;
+    });
+    const next = free > 0 ? Math.min(1, Math.max(0, budget - held) / free) : shrink;
+    if (Math.abs(next - shrink) < 1e-9) break;
+    shrink = next;
+  }
 
   const cars: ProfileCar[] = [];
   let x = MARGIN;
@@ -105,9 +123,7 @@ export function trainProfile(model: RollingStockModel | null | undefined, units:
     for (let i = 0; i < model.cars; i++) {
       const cabLeft = i === 0;
       const cabRight = i === model.cars - 1;
-      const ends = (cabLeft ? cabLen : 3) + (cabRight ? cabLen : 3);
-      const minLen = ends + model.doorsPerCar * (doorW + 4);
-      const w = Math.max(lengths[u * model.cars + i] * shrink, minLen);
+      const w = Math.max(lengths[u * model.cars + i] * shrink, minLens[u * model.cars + i]);
       const a = x + (cabLeft ? cabLen : 3);
       const b = x + w - (cabRight ? cabLen : 3);
       // Double-deck cars with two doors have their vestibules near the car ends; otherwise doors are evenly spread.
