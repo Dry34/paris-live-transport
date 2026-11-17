@@ -49,6 +49,31 @@ describe('catalogue du matériel roulant', () => {
     }
   });
 
+  it('sert la miniature du fichier Commons de sa page', () => {
+    for (const [id, m] of Object.entries(MODELS)) {
+      if (m.photo === null) continue;
+      const file = encodeURIComponent(decodeURIComponent(m.photo.page.split('/wiki/File:')[1]));
+      expect(encodeURIComponent(decodeURIComponent(m.photo.url)), id).toContain(file);
+    }
+  });
+
+  it('compte les portes par face comme les fiches Wikipédia', () => {
+    // Francilien: one door per car and per side; RER NG: two per car; Regio 2N: doors only on the
+    // single-level cars, about one per car on average.
+    expect(MODELS['z50000-7'].doorsPerCar).toBe(1);
+    expect(MODELS['z50000-8'].doorsPerCar).toBe(1);
+    expect(MODELS['z58000'].doorsPerCar).toBe(2);
+    expect(MODELS['z58500'].doorsPerCar).toBe(2);
+    expect(MODELS['regio2n'].doorsPerCar).toBe(1);
+  });
+
+  it('dessine la face avant des livrées Île-de-France Mobilités en masque sombre', () => {
+    // Real photos: IDFM stock has a black front mask framed in sky blue, not a blue nose.
+    for (const id of ['mp14-cc', 'mf77', 'z20500', 'z58000', 'regio2n', 'z50000-8', 'citadis-405', 'dualis-u53700']) {
+      expect(MODELS[id].livery.front, id).toBe('#1c232b');
+    }
+  });
+
   it('renvoie une liste vide pour une ligne inconnue', () => {
     expect(stockForLine('inconnue')).toEqual([]);
   });

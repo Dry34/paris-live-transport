@@ -28,30 +28,38 @@ export interface RollingStockModel {
 }
 
 const GLASS = '#1b2230';
+/** Black front mask (Île-de-France Mobilités stock, framed in sky blue on the photos; MI 2N). */
+const MASK = '#1c232b';
 
 const LIVERIES = {
-  /** STIF / RATP: white body, green-teal band and doors, grey skirt (MP 05, MP 89 CC, MF 88, MI 09, MI 84). */
+  /** STIF / RATP: white body, green-teal band and doors, grey skirt (MP 05, MF 88, MI 09, MI 84). */
   stif: { body: '#f2f4f5', band: '#00a88e', skirt: '#5b6670', front: '#26323a', window: GLASS, door: '#00a88e' },
-  /** Same scheme on stock with white doors and a teal waist line (MF 01, renovated MF 67). */
+  /** Same scheme with teal doors, a teal waist line and a darker front (MF 01, renovated MF 67). */
   stifDoors: { body: '#f2f4f5', band: '#00a88e', skirt: '#4f5962', front: '#1f272d', window: GLASS, door: '#00a88e' },
-  /** Île-de-France Mobilités, RATP stock: white and grey body, sky-blue front and lower band (MP 14, MF 77, MP 89 CA). */
-  idfmBlue: { body: '#eef1f4', band: '#2f8fd8', skirt: '#3d4752', front: '#2f8fd8', window: GLASS, door: '#d5dbe1' },
-  /** MF 19: white body, dark navy front and skirt, blue doors. */
-  mf19: { body: '#eef1f4', band: '#1f3c6e', skirt: '#1f2a44', front: '#1f2a44', window: GLASS, door: '#2f6fb8' },
-  /** RATP RER (MI 2N Altéo): white body, dark blue lower band, red front stripe. */
-  ratpRer: { body: '#f4f5f6', band: '#1d3e8c', skirt: '#1d3e8c', front: '#e2231a', window: GLASS, door: '#d3d7dc' },
-  /** Renovated MI 79: white body, teal, blue and red stripes by the doors. */
-  mi79: { body: '#f4f5f6', band: '#00a88e', skirt: '#2c3b8f', front: '#d9dde2', window: GLASS, door: '#e2231a' },
-  /** SNCF Transilien « Carmillon »: white body, carmine doors and front, grey skirt (Z 5600, Z 8800). */
-  carmillon: { body: '#eef0f2', band: '#a3004f', skirt: '#4a4f57', front: '#a3004f', window: GLASS, door: '#a3004f' },
-  /** Île-de-France Mobilités, SNCF stock: white and grey body, sky-blue front and doors, dark skirt. */
-  idfmSncf: { body: '#eef1f4', band: '#3a95d8', skirt: '#2c343c', front: '#3a95d8', window: GLASS, door: '#3a95d8' },
-  /** Early Transilien (AGC): white body, blue front and band, green flash. */
-  transilien: { body: '#f5f6f7', band: '#1e50a0', skirt: '#9aa3ad', front: '#1e50a0', window: GLASS, door: '#2f9a48' },
-  /** RATP trams (Citadis 302/402, Translohr): white body, teal band, grey skirt. */
-  ratpTram: { body: '#f3f5f6', band: '#00a88e', skirt: '#8a949c', front: '#f3f5f6', window: GLASS, door: '#00a88e' },
-  /** Île-de-France Mobilités trams and tram-trains: white body, sky-blue front, grey lower body. */
-  idfmTram: { body: '#f2f4f6', band: '#3a95d8', skirt: '#9aa3ad', front: '#3a95d8', window: GLASS, door: '#c9d0d7' },
+  /** MP 89 CC: white lower body under a teal waist band, dark window strip and dark doors, black front. */
+  mp89cc: { body: '#f2f4f5', band: '#00a88e', skirt: '#e6e9ec', front: '#1b2026', window: GLASS, door: '#30373d' },
+  /** Île-de-France Mobilités, RATP stock: white body, sky-blue roof line and front frame, mid-grey lower band,
+   * black front mask, white doors (MP 14, MF 77, MP 89 CA). */
+  idfmBlue: { body: '#eef1f4', band: '#2f8fd8', skirt: '#7d868f', front: MASK, window: GLASS, door: '#d5dbe1' },
+  /** MF 19: white body, blue front frame, grey skirt, black front mask, white doors. */
+  mf19: { body: '#eef1f4', band: '#2a5fb5', skirt: '#5a636c', front: MASK, window: GLASS, door: '#d5dbe1' },
+  /** RATP RER (MI 2N Altéo): white body, red band along the upper deck, dark blue lower band, black front mask. */
+  ratpRer: { body: '#f4f5f6', band: '#e2231a', skirt: '#1d3e8c', front: MASK, window: GLASS, door: '#d3d7dc' },
+  /** Renovated MI 79: white body and front, teal, magenta and blue stripes at the car ends, light grey doors. */
+  mi79: { body: '#f4f5f6', band: '#00a88e', skirt: '#2c3b8f', front: '#d9dde2', window: GLASS, door: '#cfd5db' },
+  /** SNCF Transilien « Carmillon »: white body, carmine doors and front frame, black front mask, grey skirt
+   * (Z 5600, Z 8800). */
+  carmillon: { body: '#eef0f2', band: '#a3004f', skirt: '#4a4f57', front: '#1e2228', window: GLASS, door: '#a3004f' },
+  /** Île-de-France Mobilités, SNCF stock: white and grey body, sky-blue band and doors, black front mask, dark skirt. */
+  idfmSncf: { body: '#eef1f4', band: '#3a95d8', skirt: '#2c343c', front: MASK, window: GLASS, door: '#3a95d8' },
+  /** Early Transilien (AGC): white body, blue front and band, green flash, red doors. */
+  transilien: { body: '#f5f6f7', band: '#1e50a0', skirt: '#9aa3ad', front: '#1e50a0', window: GLASS, door: '#c8102e' },
+  /** RATP trams (Citadis 302/402, Translohr): white body, teal band, grey skirt, dark glazed doors. */
+  ratpTram: { body: '#f3f5f6', band: '#00a88e', skirt: '#8a949c', front: '#f3f5f6', window: GLASS, door: '#3c464f' },
+  /** Île-de-France Mobilités trams and tram-trains: white body, sky-blue band, grey lower body, black front mask. */
+  idfmTram: { body: '#f2f4f6', band: '#3a95d8', skirt: '#9aa3ad', front: MASK, window: GLASS, door: '#c9d0d7' },
+  /** Citadis Dualis U 53600 (T11, T14): white and silver body, magenta front frame, black front mask. */
+  dualisMagenta: { body: '#eceff2', band: '#d6246e', skirt: '#9aa3ad', front: MASK, window: GLASS, door: '#c9d0d7' },
 } satisfies Record<string, Livery>;
 
 export const MODELS: Record<string, RollingStockModel> = {
@@ -101,7 +109,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'mp89-cc': {
-    id: 'mp89-cc', name: 'MP 89 CC', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.stif,
+    id: 'mp89-cc', name: 'MP 89 CC', mode: 'metro', cars: 5, levels: 1, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.mp89cc,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/MP_89_ligne_6.jpg/500px-MP_89_ligne_6.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:MP_89_ligne_6.jpg',
@@ -166,10 +174,10 @@ export const MODELS: Record<string, RollingStockModel> = {
   'mi09': {
     id: 'mi09', name: 'MI 09', mode: 'rer', cars: 5, levels: 2, doorsPerCar: 3, nose: 'flat', livery: LIVERIES.stif,
     photo: {
-      url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Ligne_de_Nanterre_a_Sartrouville_-_Viaduc_de_Nanterre_-_MI09_-_Avril_2012_%284%29.jpg/500px-Ligne_de_Nanterre_a_Sartrouville_-_Viaduc_de_Nanterre_-_MI09_-_Avril_2012_%284%29.jpg',
-      page: 'https://commons.wikimedia.org/wiki/File:Ligne_de_Nanterre_a_Sartrouville_-_Viaduc_de_Nanterre_-_MI09_-_Avril_2012_(4).jpg',
-      author: 'Akiry',
-      license: 'CC BY-SA 3.0',
+      url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_%281%29.jpg/500px-MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_%281%29.jpg',
+      page: 'https://commons.wikimedia.org/wiki/File:MI09_arrivant_en_gare_de_La_D%C3%A9fense_RER_A_%C3%A0_la_voie_2_(1).jpg',
+      author: 'Remontees',
+      license: 'CC BY-SA 4.0',
     },
   },
   'mi2n': {
@@ -236,7 +244,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z58000': {
-    id: 'z58000', name: 'RER NG (Z 58000)', mode: 'rer', cars: 6, levels: 2, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z58000', name: 'RER NG (Z 58000)', mode: 'rer', cars: 6, levels: 2, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/RER_NG_porte_maillot.jpg/500px-RER_NG_porte_maillot.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:RER_NG_porte_maillot.jpg',
@@ -245,7 +253,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z58500': {
-    id: 'z58500', name: 'RER NG (Z 58500)', mode: 'rer', cars: 7, levels: 2, doorsPerCar: 3, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z58500', name: 'RER NG (Z 58500)', mode: 'rer', cars: 7, levels: 2, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/RER_NG_009M.jpg/500px-RER_NG_009M.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:RER_NG_009M.jpg',
@@ -254,7 +262,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'regio2n': {
-    id: 'regio2n', name: 'Regio 2N (Z 57000)', mode: 'transilien', cars: 8, levels: 2, doorsPerCar: 2, nose: 'sloped', livery: LIVERIES.idfmSncf,
+    id: 'regio2n', name: 'Regio 2N (Z 57000)', mode: 'transilien', cars: 8, levels: 2, doorsPerCar: 1, nose: 'sloped', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Z_57000%2C_Livr%C3%A9e_%C3%8Ele-de-France_Mobilit%C3%A9s_Regio2n.jpg/500px-Z_57000%2C_Livr%C3%A9e_%C3%8Ele-de-France_Mobilit%C3%A9s_Regio2n.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Z_57000,_Livr%C3%A9e_%C3%8Ele-de-France_Mobilit%C3%A9s_Regio2n.jpg',
@@ -263,16 +271,16 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'z50000-8': {
-    id: 'z50000-8', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 8, levels: 1, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z50000-8', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 8, levels: 1, doorsPerCar: 1, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
-      url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Francilien_Transilien_H_en_gare_d%27Epinay-Villetaneuse.jpg/500px-Francilien_Transilien_H_en_gare_d%27Epinay-Villetaneuse.jpg',
-      page: 'https://commons.wikimedia.org/wiki/File:Francilien_Transilien_H_en_gare_d%27Epinay-Villetaneuse.jpg',
-      author: 'Remontees',
+      url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/NAT_Z50000_%2802H%2C_livr%C3%A9e_IDFM%29_%C3%A0_Champagne-sur-Oise.jpg/500px-NAT_Z50000_%2802H%2C_livr%C3%A9e_IDFM%29_%C3%A0_Champagne-sur-Oise.jpg',
+      page: 'https://commons.wikimedia.org/wiki/File:NAT_Z50000_(02H,_livr%C3%A9e_IDFM)_%C3%A0_Champagne-sur-Oise.jpg',
+      author: 'Trainsandstations',
       license: 'CC BY-SA 4.0',
     },
   },
   'z50000-7': {
-    id: 'z50000-7', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 7, levels: 1, doorsPerCar: 2, nose: 'rounded', livery: LIVERIES.idfmSncf,
+    id: 'z50000-7', name: 'Francilien (Z 50000)', mode: 'transilien', cars: 7, levels: 1, doorsPerCar: 1, nose: 'rounded', livery: LIVERIES.idfmSncf,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Francilien_Z_50000_n%C2%B0266L_sur_la_ligne_J_du_Transilien_%C3%A0_destination_de_Paris_Saint_Lazare_en_gare_de_Pontoise.jpg/500px-Francilien_Z_50000_n%C2%B0266L_sur_la_ligne_J_du_Transilien_%C3%A0_destination_de_Paris_Saint_Lazare_en_gare_de_Pontoise.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:Francilien_Z_50000_n%C2%B0266L_sur_la_ligne_J_du_Transilien_%C3%A0_destination_de_Paris_Saint_Lazare_en_gare_de_Pontoise.jpg',
@@ -353,7 +361,7 @@ export const MODELS: Record<string, RollingStockModel> = {
     },
   },
   'dualis-u53600': {
-    id: 'dualis-u53600', name: 'Citadis Dualis (U 53600)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.idfmTram,
+    id: 'dualis-u53600', name: 'Citadis Dualis (U 53600)', mode: 'tram', cars: 4, levels: 1, doorsPerCar: 2, nose: 'tram', livery: LIVERIES.dualisMagenta,
     photo: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/U_53600_%C3%A0_quai_au_terminus_d%27Epinay-sur-Seine.jpg/500px-U_53600_%C3%A0_quai_au_terminus_d%27Epinay-sur-Seine.jpg',
       page: 'https://commons.wikimedia.org/wiki/File:U_53600_%C3%A0_quai_au_terminus_d%27Epinay-sur-Seine.jpg',
