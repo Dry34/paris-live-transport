@@ -282,7 +282,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       for (const run of snap?.runs ?? []) {
         const line = network.lines[run.lineId];
         if (!line || (focus && run.lineId !== focus)) continue;
-        const p = smooth(run.id, positionAt(run, network, now));
+        const p = smooth(run, positionAt(run, network, now), now);
         if (!p) continue;
         positions.set(run.id, p);
         features.push({
