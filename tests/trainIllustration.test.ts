@@ -123,7 +123,7 @@ describe('VehiclePopup', () => {
     expect(html).toContain('QIWI · train 137594');
     expect(html).toContain('Z 20500');
     expect(html).toMatch(/<button[^>]*class="vc-model"/);
-    expect(html).not.toContain('<img');
+    expect(html).not.toContain('vc-photo'); // the local side-view drawing is fine, no Commons photo before the click
     expect(html).not.toContain('upload.wikimedia.org');
   });
 
