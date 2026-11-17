@@ -170,6 +170,9 @@ export function buildRuns(journeys: Journey[], network: Network, previous: Vehic
       stops: [...(prev.stop ? [prev.stop] : []), ...jr.calls.map((c) => ({ ...c }))],
       hasPrevious: prev.stop !== null,
       prevInferred: prev.inferred,
+      mission: jr.mission ?? null,
+      trainNumber: jr.trainNumber ?? null,
+      length: jr.length ?? null,
     });
   });
   return mergeAndHide(runs);
@@ -208,6 +211,9 @@ function mergeAndHide(runs: VehicleRun[]): VehicleRun[] {
     if (twin.k === twin.run.stops.length - 1 && at(z) >= (y.dep ?? y.arr)!) {
       twin.run.stops.push({ ...z });
       addCall(twin.run, twin.run.stops.length - 1);
+      twin.run.mission ??= r.mission;
+      twin.run.trainNumber ??= r.trainNumber;
+      twin.run.length ??= r.length;
       removed.add(r);
     } else {
       r.hide = 'always';

@@ -18,12 +18,15 @@ export interface Network {
 export interface Journey {          // sortie du parsing SIRI
   ref: string; lineId: string; direction: string; destination: string; operator: 'RATP' | 'SNCF' | 'OTHER';
   calls: { quay: string; arr: number | null; dep: number | null; delaySec?: number | null }[];   // epoch ms; delaySec = attendu − théorique (s), null si inconnu
+  // SNCF only (DatedVehicleJourneyRef starts with SNCF_), otherwise null.
+  mission?: string | null; trainNumber?: string | null; length?: 'long' | 'short' | null;
 }
 export interface RunStop { quay: string; arr: number | null; dep: number | null; delaySec?: number | null }
 export interface VehicleRun {
   id: string; lineId: string; direction: string; destination: string;
   stops: RunStop[];                  // stops[0] = station précédente si connue
   hasPrevious: boolean; prevInferred: boolean;
+  mission?: string | null; trainNumber?: string | null; length?: 'long' | 'short' | null;
   // Not drawn on the map ('always': duplicate of another run; 'whileWaiting': another train waits first
   // at the same terminus quay). The run's real calls still feed the departure boards.
   hide?: 'always' | 'whileWaiting';

@@ -41,6 +41,17 @@ function operatorOf(j: Raw): Journey['operator'] {
   return 'OTHER';
 }
 
+/** SNCF journeys only: mission code (JourneyNote), train number (VehicleJourneyName), length (VehicleFeatureRef). */
+function sncfExtras(j: Raw): Pick<Journey, 'mission' | 'trainNumber' | 'length'> {
+  if (!str(j.DatedVehicleJourneyRef as Val).startsWith('SNCF_')) return { mission: null, trainNumber: null, length: null };
+  const feats = arr(j.VehicleFeatureRef).map((f) => (typeof f === 'string' ? f : str(f as Val)));
+  return {
+    mission: first(j.JourneyNote) || null,
+    trainNumber: first(j.VehicleJourneyName) || null,
+    length: feats.includes('longTrain') ? 'long' : feats.includes('shortTrain') ? 'short' : null,
+  };
+}
+
 function delta(exp: unknown, aimed: unknown): number | null {
   const e = time(exp);
   const t = time(aimed);
@@ -69,6 +80,7 @@ function parseJourney(j: Raw): Journey | null {
     direction: str(j.DirectionRef as Val),
     destination: first(j.DestinationName) || first(j.DestinationShortName) || first(j.DirectionName),
     operator: operatorOf(j),
+    ...sncfExtras(j),
     calls,
   };
 }
