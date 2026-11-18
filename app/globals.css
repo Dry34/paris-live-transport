@@ -668,3 +668,6 @@ button.vc-model[aria-pressed='true'] { text-decoration-style: solid; text-decora
   object-fit: contain;
   margin: 6px 0 2px;
 }
+
+.maplibregl-ctrl button.ltp-tilt { font: 700 12px/1 system-ui, sans-serif; color: #1f2633; }
+.maplibregl-ctrl button.ltp-tilt[aria-pressed='true'] { background: #1f2633; color: #fff; }

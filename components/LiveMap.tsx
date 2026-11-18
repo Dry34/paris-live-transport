@@ -4,13 +4,15 @@
 // it, fades the other shapes and only draws that line's trains and stations.
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { DataDrivenPropertyValueSpecification, GeoJSONSource, Map as MlMap, Popup } from 'maplibre-gl';
+import type { DataDrivenPropertyValueSpecification, GeoJSONSource, IControl, Map as MlMap, Popup } from 'maplibre-gl';
 import type { Network, Snapshot, VehicleRun } from '@/lib/types';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
 import { fadeColor, lineBounds } from '@/lib/client/lineFocus';
 import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
 import { panIntoView, popupPadding } from '@/lib/client/popupView';
 import { VehiclePopup } from './VehiclePopup';
+import { createTrain3dLayer, type Train3d, type Train3dLayer } from './train3dLayer';
+import { model3dForLine, MODEL_MIN_ZOOM } from '@/lib/client/train3d';
 
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const STYLE_DARK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
@@ -121,6 +123,38 @@ function applyFocusStyle(m: MlMap, focus: string | null) {
   m.setLayerZoomRange('station-labels', focus ? 0 : STATION_LABELS_MINZOOM, 24);
 }
 
+const TILT_PITCH = 60;
+const TILT_ZOOM = 15;
+
+/** "3D" button: tilts the camera (zooming in so the 3D trains show) or flattens it back. */
+function tiltControl(): IControl {
+  let container: HTMLDivElement | null = null;
+  return {
+    onAdd(map) {
+      container = document.createElement('div');
+      container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ltp-tilt';
+      button.textContent = '3D';
+      button.title = 'Vue 3D';
+      button.setAttribute('aria-label', 'Basculer la vue 3D');
+      const sync = () => button.setAttribute('aria-pressed', String(map.getPitch() > 5));
+      button.addEventListener('click', () => {
+        if (map.getPitch() > 5) map.easeTo({ pitch: 0, duration: CAMERA_MS });
+        else map.easeTo({ pitch: TILT_PITCH, zoom: Math.max(map.getZoom(), TILT_ZOOM), duration: CAMERA_MS });
+      });
+      map.on('pitchend', sync);
+      sync();
+      container.appendChild(button);
+      return container;
+    },
+    onRemove() {
+      container?.remove();
+    },
+  };
+}
+
 export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onOpenLine, onShownCountChange }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -152,6 +186,9 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
     let map: MlMap | null = null;
     const media = window.matchMedia(DARK_QUERY);
     const smooth = createSmoother();
+    let trains3d: Train3dLayer | null = null;
+    /** Hidden where a 3D model is drawn instead (zoomed in, line with a model). */
+    const flatOpacity = ['step', ['zoom'], 1, MODEL_MIN_ZOOM, ['case', ['get', 'm3d'], 0, 1]] as DataDrivenPropertyValueSpecification<number>;
 
     const addLayers = (m: MlMap) => {
       if (m.getSource('lines')) return;
@@ -237,6 +274,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
           'icon-color': media.matches ? '#ffffff' : '#141821',
           'icon-halo-color': media.matches ? '#141821' : '#ffffff',
           'icon-halo-width': 1.6,
+          'icon-opacity': flatOpacity,
         },
       });
       m.addLayer({
@@ -248,8 +286,12 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
           'circle-color': ['get', 'color'],
           'circle-stroke-color': media.matches ? '#10141b' : '#ffffff',
           'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 2],
+          'circle-opacity': flatOpacity,
+          'circle-stroke-opacity': flatOpacity,
         },
       });
+      trains3d = createTrain3dLayer();
+      m.addLayer(trains3d);
       m.addLayer({
         id: 'vehicle-labels',
         type: 'symbol',
@@ -279,20 +321,24 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       const focus = focusRef.current;
       const positions = new Map<string, RunPosition>();
       const features: GeoJSON.Feature[] = [];
+      const models: Train3d[] = [];
       for (const run of snap?.runs ?? []) {
         const line = network.lines[run.lineId];
         if (!line || (focus && run.lineId !== focus)) continue;
         const p = smooth(run, positionAt(run, network, now), now, run.id === selectedRef.current);
         if (!p) continue;
         positions.set(run.id, p);
+        const model = model3dForLine(run.lineId);
+        if (model) models.push({ model, coord: p.coord, bearing: p.bearing });
         features.push({
           type: 'Feature',
-          properties: { id: run.id, color: line.color, textColor: line.textColor, label: line.shortName, ...(p.bearing === null ? {} : { bearing: p.bearing }) },
+          properties: { id: run.id, color: line.color, textColor: line.textColor, label: line.shortName, m3d: model !== null, ...(p.bearing === null ? {} : { bearing: p.bearing }) },
           geometry: { type: 'Point', coordinates: p.coord },
         });
       }
       positionsRef.current = positions;
       void source.setData(featureCollection(features));
+      trains3d?.update(models);
       const sel = selectedRef.current;
       if (sel && popupRef.current) {
         const p = positions.get(sel);
@@ -323,7 +369,8 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       // No `compact` option: full credits stay visible on wide screens (compact: true folds them to an "i" on the first
       // drag); MapLibre switches to the foldable compact form by itself under 640 px.
       map.addControl(new ml.AttributionControl({ customAttribution: 'Données IDFM (PRIM)' }), 'bottom-right');
-      map.addControl(new ml.NavigationControl({ showCompass: false }), 'top-right');
+      map.addControl(new ml.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
+      map.addControl(tiltControl(), 'top-right');
       map.on('style.load', () => {
         readyRef.current = false;
         addLayers(map!);
