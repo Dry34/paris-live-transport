@@ -37,7 +37,9 @@ export function SidePanel({ network, snapshot, disruptions, shownCount, focusLin
   const [open, setOpen] = useState(true);
   const now = useNow(1000);
   // On phones the panel is a bottom sheet: start folded so the map stays visible.
+  // Read once after mount, not in the initial state: the server render has no window and must match the first client render.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off sync with the viewport after hydration
     if (window.matchMedia('(max-width: 720px)').matches) setOpen(false);
   }, []);
 
