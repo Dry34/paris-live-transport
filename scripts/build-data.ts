@@ -15,6 +15,8 @@ import {
   groupStopTimes,
   lineShapesFromSegments,
   simplifyLine,
+  snapQuaysToSegments,
+  stationLinePoints,
   stripIdfm,
   type GtfsStop,
   type GtfsStopTime,
@@ -139,18 +141,18 @@ async function main(): Promise<void> {
   zip.close();
 
   const usedQuays = new Set(patterns.flatMap((p) => p.quays));
-  const { quays, stations } = buildStations(stops, usedQuays, patterns);
+  const { quays: rawQuays, stations } = buildStations(stops, usedQuays, patterns);
   const shapeOfPattern = new Map<Pattern, LngLat[]>();
   for (const [p, id] of shapeIdOfPattern) {
     const s = shapes.get(id);
     if (s) shapeOfPattern.set(p, s);
   }
-  const rawSegments = buildSegments(patterns, quays, shapeOfPattern, runtimes);
+  // Quays move onto the track (segment ends) so that stations and dwelling trains sit on the drawn lines.
+  const { quays, segments: rawSegments } = snapQuaysToSegments(rawQuays, buildSegments(patterns, rawQuays, shapeOfPattern, runtimes));
 
   const segments: Record<string, Segment> = {};
   for (const [k, s] of Object.entries(rawSegments)) segments[k] = { coords: roundCoords(s.coords), seconds: Math.round(s.seconds) };
   for (const q of Object.values(quays)) [q.lon, q.lat] = [r5(q.lon), r5(q.lat)];
-  for (const s of Object.values(stations)) [s.lon, s.lat] = [r5(s.lon), r5(s.lat)];
 
   const lines: Network['lines'] = {};
   for (const { id, mode } of TARGET_LINES) {
@@ -169,6 +171,19 @@ async function main(): Promise<void> {
     };
     const lineShapes = lineShapesFromSegments(patterns, rawSegments, quays, id).map((s) => roundCoords(simplifyLine(s, SIMPLIFY_M)));
     lines[id] = { ...info, shapes: lineShapes };
+  }
+
+  // One point per line and station, on the line's drawn trace; the station itself sits at their centre.
+  const shapesById = Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, l.shapes]));
+  const points = stationLinePoints(stations, quays, patterns, shapesById);
+  for (const s of Object.values(stations)) {
+    const pts = points[s.id];
+    if (pts && Object.keys(pts).length > 0) {
+      s.points = Object.fromEntries(Object.entries(pts).map(([l, [x, y]]) => [l, [r5(x), r5(y)] as LngLat]));
+      const all = Object.values(s.points);
+      [s.lon, s.lat] = [all.reduce((t, p) => t + p[0], 0) / all.length, all.reduce((t, p) => t + p[1], 0) / all.length];
+    }
+    [s.lon, s.lat] = [r5(s.lon), r5(s.lat)];
   }
 
   const network: Network = { generatedAt: new Date().toISOString(), lines, quays, stations, patterns, segments };

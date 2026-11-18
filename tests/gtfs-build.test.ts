@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parse } from 'csv-parse/sync';
-import type { LngLat, Pattern, Quay } from '../lib/types';
+import type { LngLat, Pattern, Quay, Segment, Station } from '../lib/types';
 import { cumulativeLengths, distanceM } from '../lib/geo';
 import {
   buildPatterns,
@@ -12,6 +12,8 @@ import {
   computeRuntimes,
   groupStopTimes,
   simplifyLine,
+  snapQuaysToSegments,
+  stationLinePoints,
   type GtfsStop,
   type GtfsStopTime,
   type GtfsTrip,
@@ -184,5 +186,40 @@ describe('lineShapesFromSegments', () => {
   it('starts a new polyline after a stretch already drawn', () => {
     const shapes = lineShapesFromSegments([P(['b', 'c'], 10), P(['a', 'b', 'c', 'd'], 5)], segments, quays, 'L');
     expect(shapes.map((s) => [s[0][0], s.at(-1)![0]])).toEqual([[2.01, 2.02], [2.0, 2.01], [2.02, 2.03]]);
+  });
+});
+
+describe('arrêts posés sur les tracés', () => {
+  const Q = (id: string, stationId: string, lon: number, lat: number): Quay => ({ id, name: id, lon, lat, stationId });
+
+  it('déplace chaque quai sur le bout des segments qui le touchent, et réaligne les segments droits', () => {
+    // quay b is 30 m north of the track; the snapped segments start/end on the track
+    const quays = { a: Q('a', 'SA', 2.0, 48.9), b: Q('b', 'SB', 2.01, 48.90027), c: Q('c', 'SC', 2.02, 48.9), z: Q('z', 'SZ', 2.03, 48.95) };
+    const segments: Record<string, Segment> = {
+      'a>b': { coords: [[2.0, 48.9], [2.005, 48.9], [2.01, 48.9]], seconds: 60 },
+      'b>c': { coords: [[2.01, 48.9], [2.02, 48.9]], seconds: 60 }, // straight fallback = old quay coords? no: already on track
+      'c>z': { coords: [[2.02, 48.9], [2.03, 48.95]], seconds: 60 }, // straight fallback between quay coords
+    };
+    const out = snapQuaysToSegments(quays, segments);
+    expect([out.quays.b.lon, out.quays.b.lat]).toEqual([2.01, 48.9]);
+    expect([out.quays.z.lon, out.quays.z.lat]).toEqual([2.03, 48.95]); // only straight segments touch z: unchanged
+    expect(out.segments['c>z'].coords).toEqual([[2.02, 48.9], [2.03, 48.95]]);
+  });
+
+  it('place le point d’une ligne dans une station sur le tracé de cette ligne', () => {
+    // two quays on parallel tracks either side of the trace, station centroid far away (interchange)
+    const quays = { q1: Q('q1', 'S', 2.01, 48.9001), q2: Q('q2', 'S', 2.01, 48.8999), m: Q('m', 'S', 2.02, 48.91) };
+    const stations: Record<string, Station> = { S: { id: 'S', name: 'S', lon: 2.015, lat: 48.905, quays: ['q1', 'q2', 'm'], lines: ['L', 'M'] } };
+    const patterns = [
+      { lineId: 'L', directionId: 0 as const, quays: ['x', 'q1'], trips: 1, headsign: '' },
+      { lineId: 'L', directionId: 1 as const, quays: ['q2', 'x'], trips: 1, headsign: '' },
+      { lineId: 'M', directionId: 0 as const, quays: ['m', 'y'], trips: 1, headsign: '' },
+    ];
+    const shapes = { L: [[[2.0, 48.9], [2.02, 48.9]]] as LngLat[][], M: [[[2.02, 48.905], [2.02, 48.92]]] as LngLat[][] };
+    const pts = stationLinePoints(stations, quays, patterns, shapes);
+    expect(pts.S.L[0]).toBeCloseTo(2.01, 6);
+    expect(pts.S.L[1]).toBeCloseTo(48.9, 6);
+    expect(pts.S.M[0]).toBeCloseTo(2.02, 6);
+    expect(pts.S.M[1]).toBeCloseTo(48.91, 6);
   });
 });
