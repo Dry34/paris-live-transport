@@ -1,0 +1,9 @@
+stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station
+IDFM:S1,Station A,48.85,2.3,1,
+IDFM:A,Quai A,48.85,2.3,0,IDFM:S1
+IDFM:S2,Station B,48.85,2.31,1,
+IDFM:B,Quai B,48.85,2.31,0,IDFM:S2
+IDFM:S3,Station C,48.85,2.32,1,
+IDFM:C,Quai C,48.85,2.32,0,IDFM:S3
+IDFM:S4,Station D,48.85,2.33,1,
+IDFM:D,Quai D,48.85,2.33,0,IDFM:S4

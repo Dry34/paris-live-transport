@@ -1,0 +1,1046 @@
+{
+ "disruptions": [
+  {
+   "id": "e9363590-80f4-491f-9aee-d191819026d2",
+   "applicationPeriods": [
+    {
+     "begin": "20261011T180059",
+     "end": "20261220T043000"
+    }
+   ],
+   "lastUpdate": "20261011T180411",
+   "cause": "TRAVAUX",
+   "severity": "BLOQUANTE",
+   "tags": [
+    "Actualité"
+   ],
+   "title": "Métro 4 : Travaux de rénovation - Arrêt non desservi",
+   "message": "<p>Jusqu'au 19 décembre inclus, l'arrêt n'est pas desservi à Saint-Michel en raison de travaux de rénovation</p>",
+   "shortMessage": "Arrêt non desservi"
+  },
+  {
+   "id": "78b41495-d1df-423f-a43a-be1a8dfe77ca",
+   "applicationPeriods": [
+    {
+     "begin": "20260722T044500",
+     "end": "20270423T043000"
+    }
+   ],
+   "lastUpdate": "20260722T044616",
+   "cause": "TRAVAUX",
+   "severity": "BLOQUANTE",
+   "tags": [
+    "Actualité"
+   ],
+   "title": "Métro 8 : Travaux de rénovation - Arrêt non desservi",
+   "message": "<p>Jusqu'au 22 avril 2027 inclus, l'arrêt n'est pas desservi à République en raison de travaux de rénovation</p>",
+   "shortMessage": "Arrêt non desservi"
+  },
+  {
+   "id": "9cb8411e-e0ab-41e4-a6da-66a5cdc8de1d",
+   "applicationPeriods": [
+    {
+     "begin": "20261116T110000",
+     "end": "20261129T123000"
+    }
+   ],
+   "lastUpdate": "20261103T085244",
+   "cause": "TRAVAUX",
+   "severity": "PERTURBEE",
+   "title": "Travaux d'entretien des voies en gare de Garches-Marne-la-Coquette",
+   "message": "<p>Chers voyageurs,&nbsp;</p><p>&nbsp;</p><p>Des travaux d'entretien des voies en gare de Garches-Marne-la-Coquette vont avoir lieu et cela va impacter la circulation des trains sur votre ligne.</p><p>&nbsp;</p><ul><li>Du <strong>lundi 16 novembre au vendredi 27 novembre inclus</strong>, la circulation sur votre ligne sera entièrement interrompue de <strong>22h00 jusqu'à la fin de service du lundi au vendredi uniquement</strong>.</li><li>Du <strong>samedi 28 novembre au dimanche 29 novembre jusqu'à 12h30</strong>, aucun train ne circulera sur votre ligne.</li></ul><p>&nbsp;</p><p>Des bus de remplacement seront mis à votre disposition.&nbsp;</p><p>&nbsp;</p><p>Si vous souhaitez consulter ou télécharger les fiches horaires au format PDF pour les travaux du 16/11 au 27/11 veuillez cliquer <a href=\"https://d1censv0a3tn4o.cloudfront.net/pools/idfm/trafficreport/disruptions/attachments/0b4b6edb-df93-419f-b701-3c0b7eb92fa1/Affichage_station_semaine.pdf\">ICI</a>.</p><p>&nbsp;</p><p>Si vous souhaitez consulter ou télécharger les fiches horaires au format PDF pour les travaux du 28/11 au 29/11 veuillez cliquer <a href=\"https://d1censv0a3tn4o.cloudfront.net/pools/idfm/trafficreport/disruptions/attachments/d35fcb47-889e-4fec-9f1b-43b98475d846/Affichage_station_weekend_28-29_novembre.pdf\">ICI</a>.</p><p>&nbsp;</p><p>Sinon, merci de consulter l'affichage en station ou vos applications de mobilité.</p>"
+  },
+  {
+   "id": "f6572214-88c3-4ef0-8379-f0aca53ef367",
+   "applicationPeriods": [
+    {
+     "begin": "20261013T030000",
+     "end": "20261218T030000"
+    }
+   ],
+   "lastUpdate": "20261114T085928",
+   "cause": "PERTURBATION",
+   "severity": "PERTURBEE",
+   "title": "RER E : Val de Fontenay – Travaux en gare – du 20/10 au 17/12",
+   "message": "<p><b>P&#233;riode</b> : du lundi au dimanche, toute la journ&#233;e<br><b>Dates</b> : Du 20 octobre au 17 d&#233;cembre 2026<br><b>Gare</b> : Val de Fontenay<br><br><b>Acc&#232;s du RER E vers le RER A modifi&#233;.</b><br> <br><u>Cheminement recommand&#233; en gare </u>:</p><p>Pour rejoindre le quai du RER A en direction Paris : empruntez l&#8217;acc&#232;s vers le quai du RER A en direction de Marne-la-Vall&#233;e.</p><p>Nous vous conseillons autant que possible de vous positionner &#224; l&#8217;avant du train avant de descendre en gare de Val de Fontenay.</p><p><b>Motif</b> : remplacement d&#8217;un escalier m&#233;canique en gare </p>"
+  },
+  {
+   "id": "907a32db-1729-4039-9799-650369259f56",
+   "applicationPeriods": [
+    {
+     "begin": "20261116T041300",
+     "end": "20261116T170000"
+    }
+   ],
+   "lastUpdate": "20261116T110405",
+   "cause": "PERTURBATION",
+   "severity": "PERTURBEE",
+   "title": "Départ non assuré - Ligne T13 : panne de tramway le lundi 16 novembre 2026",
+   "message": "En raison d'une panne de tramway, les départs suivants de la ligne T13 sont supprimés : Saint-Cyr - voie 1 : 06h19, 06h40, 07h10, 07h30, 07h40, 08h00, 08h10, 08h30, 08h40, 08h50, 09h20, 10h00, 10h40, 11h20, 12h00, 12h20, 12h40, 13h20, 13h40, 14h00, 14h40, 15h00 et 15h20  :"
+  },
+  {
+   "id": "033efa16-b682-4d0a-b1f0-40cde4be49fd",
+   "applicationPeriods": [
+    {
+     "begin": "20261116T043900",
+     "end": "20261116T170000"
+    }
+   ],
+   "lastUpdate": "20261116T124104",
+   "cause": "PERTURBATION",
+   "severity": "PERTURBEE",
+   "title": "Départ non assuré - Ligne T13 : panne de tramway le lundi 16 novembre 2026",
+   "message": "En raison d'une panne de tramway, les départs suivants de la ligne T13 sont supprimés : Saint-Germain-en-Laye - voie 2 : 06h20, 07h00, 07h20, 07h30, 07h50, 08h10, 08h20, 08h40, 08h50, 09h10, 09h20, 09h30, 10h00, 10h40, 11h20, 12h00, 12h40 et 13h20"
+  },
+  {
+   "id": "376e400a-5014-4d25-be62-b99b6f4305fb",
+   "applicationPeriods": [
+    {
+     "begin": "20261019T172000",
+     "end": "20270131T235900"
+    }
+   ],
+   "lastUpdate": "20261020T164847",
+   "cause": "INFORMATION",
+   "severity": "INFORMATION",
+   "title": "Tramway T4 - Ecrans d'information voyageurs hors service en gare de Bondy.",
+   "message": "<p>Les écrans d'information voyageurs sont indisponibles en gare de Bondy, sur la ligne T4.</p><p>&nbsp;</p><p>Nous vous invitions à consulter l'application Ile-de-France Mobilités pour connaître les horaires de passage de vos tramways.</p><p>&nbsp;</p><p>Veuillez nous excuser pour la gêne occasionnée.</p>"
+  },
+  {
+   "id": "8e9e08e6-b0ce-4a75-b69e-3dd9bdadb5b8",
+   "applicationPeriods": [
+    {
+     "begin": "20261111T230000",
+     "end": "20261112T030000"
+    },
+    {
+     "begin": "20261112T230000",
+     "end": "20261113T030000"
+    },
+    {
+     "begin": "20261113T230000",
+     "end": "20261114T030000"
+    },
+    {
+     "begin": "20261116T230000",
+     "end": "20261117T030000"
+    },
+    {
+     "begin": "20261117T230000",
+     "end": "20261118T030000"
+    },
+    {
+     "begin": "20261118T230000",
+     "end": "20261119T030000"
+    },
+    {
+     "begin": "20261119T230000",
+     "end": "20261120T030000"
+    },
+    {
+     "begin": "20261120T230000",
+     "end": "20261121T030000"
+    },
+    {
+     "begin": "20261123T230000",
+     "end": "20261124T030000"
+    },
+    {
+     "begin": "20261124T230000",
+     "end": "20261125T030000"
+    },
+    {
+     "begin": "20261125T230000",
+     "end": "20261126T030000"
+    },
+    {
+     "begin": "20261126T230000",
+     "end": "20261127T030000"
+    },
+    {
+     "begin": "20261127T230000",
+     "end": "20261128T030000"
+    },
+    {
+     "begin": "20261130T230000",
+     "end": "20261201T030000"
+    }
+   ],
+   "lastUpdate": "20261001T145848",
+   "cause": "TRAVAUX",
+   "severity": "PERTURBEE",
+   "title": "RER C : Pont de Rungis et Paris Austerlitz du 02/11 au 30/11.",
+   "message": "<p>P&#233;riode : les soir&#233;es.<br><br>Dates : du lundi 2 au lundi 30 novembre (sauf samedi, dimanche et f&#234;te).<br><br>Le trafic est interrompu entre Pont de Rungis et Paris Austerlitz :</p><p>- Dernier d&#233;part de Paris Austerlitz &#224; 22h27</p><p>- Dernier d&#233;part de Pont de Rungis &#224; 22h08</p><p>Report : Lignes de m&#233;tro 7 ou 14, Tramways T3a , T7, T9, bus de ville 180, 182, 183, 323, 325, 482, 483 ou TVM<br><br>Les horaires du calculateur d'itin&#233;raire tiennent compte des travaux.<br><br>Motif : travaux sur le r&#233;seau ferr&#233;.</p>",
+   "shortMessage": "Arrêt(s) non desservi(s)",
+   "impactedSections": [
+    {
+     "lineId": "line:IDFM:C01727",
+     "from": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:69677",
+      "name": "Thiais - Orly (Pont de Rungis) (Thiais)"
+     },
+     "to": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:71135",
+      "name": "Gare d'Austerlitz (Paris)"
+     }
+    },
+    {
+     "lineId": "line:IDFM:C01727",
+     "from": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:71135",
+      "name": "Gare d'Austerlitz (Paris)"
+     },
+     "to": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:69677",
+      "name": "Thiais - Orly (Pont de Rungis) (Thiais)"
+     }
+    }
+   ]
+  },
+  {
+   "id": "55d17d51-c36b-4103-9f4f-c4078ddd617c",
+   "applicationPeriods": [
+    {
+     "begin": "20261111T230000",
+     "end": "20261112T030000"
+    },
+    {
+     "begin": "20261112T230000",
+     "end": "20261113T030000"
+    },
+    {
+     "begin": "20261113T230000",
+     "end": "20261114T030000"
+    },
+    {
+     "begin": "20261116T230000",
+     "end": "20261117T030000"
+    },
+    {
+     "begin": "20261117T230000",
+     "end": "20261118T030000"
+    },
+    {
+     "begin": "20261118T230000",
+     "end": "20261119T030000"
+    },
+    {
+     "begin": "20261119T230000",
+     "end": "20261120T030000"
+    },
+    {
+     "begin": "20261120T230000",
+     "end": "20261121T030000"
+    },
+    {
+     "begin": "20261123T230000",
+     "end": "20261124T030000"
+    },
+    {
+     "begin": "20261124T230000",
+     "end": "20261125T030000"
+    },
+    {
+     "begin": "20261125T230000",
+     "end": "20261126T030000"
+    },
+    {
+     "begin": "20261126T230000",
+     "end": "20261127T030000"
+    },
+    {
+     "begin": "20261127T230000",
+     "end": "20261128T030000"
+    },
+    {
+     "begin": "20261130T230000",
+     "end": "20261201T030000"
+    }
+   ],
+   "lastUpdate": "20261001T151747",
+   "cause": "TRAVAUX",
+   "severity": "PERTURBEE",
+   "title": "RER C : entre Avenue Henri Martin et Pontoise du 02/11 au 30/11",
+   "message": "<p>P&#233;riode : les soir&#233;es.<br><br>Dates : du lundi 2 au lundi 30 novembre (sauf samedi, dimanche et f&#234;te).<br><br>Le trafic est interrompu entre Avenue Henri Martin et Montigny - Beauchamp et Pontoise :</p><p>- Dernier d&#233;part d'Avenue Henri Martin pour Pontoise &#224; 21h41<br>- Dernier d&#233;part d'Avenue Henri Martin pour Montigny B. &#224;  22h55<br>- Dernier d&#233;part de Pontoise &#224; 21h58<br>- Dernier d&#233;part de Montigny Beauchamp &#224; 22h25</p><p>Report : ligne H , m&#233;tros, tramway ou bus de ville 138 entre St-Ouen et Ermont Eaubonne.<br><br>Les horaires du calculateur d'itin&#233;raire tiennent compte des travaux.<br><br>Motif : travaux sur le r&#233;seau ferr&#233;.</p>",
+   "shortMessage": "Arrêt(s) non desservi(s)",
+   "impactedSections": [
+    {
+     "lineId": "line:IDFM:C01727",
+     "from": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:71286",
+      "name": "Avenue Henri Martin (Paris)"
+     },
+     "to": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:66816",
+      "name": "Pontoise (Pontoise)"
+     }
+    },
+    {
+     "lineId": "line:IDFM:C01727",
+     "from": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:71286",
+      "name": "Avenue Henri Martin (Paris)"
+     },
+     "to": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:66335",
+      "name": "Montigny - Beauchamp (Montigny-lès-Cormeilles)"
+     }
+    }
+   ]
+  },
+  {
+   "id": "321d4392-14a2-40d2-8fb4-bfdb94e250f6",
+   "applicationPeriods": [
+    {
+     "begin": "20261121T234500",
+     "end": "20261122T014500"
+    }
+   ],
+   "lastUpdate": "20261116T122739",
+   "cause": "TRAVAUX",
+   "severity": "PERTURBEE",
+   "title": "RER E : Nanterre - Chelles – Gournay 21/11",
+   "message": "<p>P&#233;riode : &#224; partir de 00h15<br><br>Dates : le samedi 21/11<br><br>Le trafic est interrompu entre Nanterre-la-Folie et Chelles - Gournay. <br>Le dernier train NOCY de Chelles &#8211; Gournay vers Nanterre-la-Folie est &#224; 00h03. <br>Le dernier train CONY de Nanterre-la-Folie vers Chelles &#8211; Gournay est &#224; 00h34.<br><br>Un service de bus de remplacement est mis en place avec desserte des gares interm&#233;diaires.<br><br>Les horaires du calculateur d'itin&#233;raire tiennent compte des travaux.<br><br>Motif : travaux sur le r&#233;seau ferr&#233;.</p>",
+   "shortMessage": "Trafic perturbé",
+   "impactedSections": [
+    {
+     "lineId": "line:IDFM:C01729",
+     "from": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:68407",
+      "name": "Chelles - Gournay (Chelles)"
+     },
+     "to": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:488087",
+      "name": "Nanterre-La-Folie (Nanterre)"
+     }
+    },
+    {
+     "lineId": "line:IDFM:C01729",
+     "from": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:488087",
+      "name": "Nanterre-La-Folie (Nanterre)"
+     },
+     "to": {
+      "type": "stop_area",
+      "id": "stop_area:IDFM:68407",
+      "name": "Chelles - Gournay (Chelles)"
+     }
+    }
+   ]
+  },
+  {
+   "id": "1d4cc819-3a25-40d2-a827-3c3e0af4fb03",
+   "applicationPeriods": [
+    {
+     "begin": "20261015T111500",
+     "end": "20270103T235900"
+    }
+   ],
+   "lastUpdate": "20261015T111904",
+   "cause": "INFORMATION",
+   "severity": "INFORMATION",
+   "tags": [
+    "Actualité"
+   ],
+   "title": "4666 - arrêt 'Fontaine de Jouvence' (dès le 02/11/26)",
+   "message": "<p>En raison d'une meilleure cohérence sur les arrêts ‘Fontaine de Jouvence’ à <i><strong>Marcoussis</strong></i>,</p><p><span style=\"color:hsl(0,75%,60%);\"><strong>L'arrêt ‘Fontaine de Jouvence’ vers Chêne Rond est déplacé sur l'arrêt des lignes en direction de Sainte-Geneviève-des-Bois</strong></span></p><p><strong><u>A partir du lundi 2 novembre 2026</u></strong></p>"
+  },
+  {
+   "id": "5efdaebc-3f86-4e39-bae3-8feb909d8cc0",
+   "applicationPeriods": [
+    {
+     "begin": "20261018T040000",
+     "end": "20261219T020000"
+    }
+   ],
+   "lastUpdate": "20261018T040247",
+   "cause": "PERTURBATION",
+   "severity": "PERTURBEE",
+   "title": "Bus 234 - travaux sur la chaussée : service perturbé du 18/10 au 19/12",
+   "message": "<p>En raison de travaux sur la chaussée, le Bus 234 est perturbé  du 18/10 au 19/12, prévoir . Merci de votre compréhension.</p>",
+   "shortMessage": "Trafic fortement perturbé"
+  },
+  {
+   "id": "9fe24ae9-8681-41c2-88a8-400d7161e5dd",
+   "applicationPeriods": [
+    {
+     "begin": "20260915T030000",
+     "end": "20261231T235900"
+    }
+   ],
+   "lastUpdate": "20260914T121015",
+   "cause": "PERTURBATION",
+   "severity": "PERTURBEE",
+   "title": "⚠🚍 Ligne 6543 - À partir 15 septembre 2026 jusqu'à la fin des travaux",
+   "message": "<p><p><b> ⚠🚍 Ligne 6543 - À partir 15 septembre 2026 jusqu'à la fin des travaux</b></p><p>En raison de travaux dans Poissy provoquant d'importants ralentissement, la ligne 6543 ne desservira pas un arrêt en direction du Lycée Charles de Gaulle. Les horaires de passages concernés : 7h46, 7h56 et 8h52.</p><p> ❌ Arrêt <b>Gare Nord de Poissy - Quai A1</b> non desservi.</p><p> ✅ Report arrêt <b>Parvis Gare - Quai 1.</b></p><p>Nous vous prions de bien vouloir nous excuser.</p></p>"
+  },
+  {
+   "id": "4d860721-1b32-4a05-8284-4e3c60a76e15",
+   "applicationPeriods": [
+    {
+     "begin": "20261116T061000",
+     "end": "20261219T040000"
+    }
+   ],
+   "lastUpdate": "20261116T061452",
+   "cause": "TRAVAUX",
+   "severity": "BLOQUANTE",
+   "title": "Bus 84 : Travaux - Arrêt(s) non desservi(s)",
+   "message": "<p>La ligne 84 est déviée : les arrêts situés entre Panthéon et Musée du Luxembourg ne sont plus desservis en direction de Alsace. Reprise estimée : samedi 19 décembre 2026, à partir de 04h00. Raison : travaux.</p>",
+   "shortMessage": "Arrêt(s) non desservi(s)"
+  },
+  {
+   "id": "0dfb13ea-b955-4116-a7e7-b3440091ca3b",
+   "applicationPeriods": [
+    {
+     "begin": "20261103T040000",
+     "end": "20261120T020000"
+    }
+   ],
+   "lastUpdate": "20261112T115843",
+   "cause": "PERTURBATION",
+   "severity": "PERTURBEE",
+   "title": "Bus 71 - travaux aux abords des points d'arrêts : service perturbé du 03/11 au 20/11",
+   "message": "<p>En raison de travaux aux abords des points d'arrêts, le Bus 71 est perturbé  du 03/11 au 20/11, prévoir . Merci de votre compréhension.</p>",
+   "shortMessage": "Trafic fortement perturbé"
+  },
+  {
+   "id": "a6d8af40-a353-4ae6-868b-e55ef4cd96ac",
+   "applicationPeriods": [
+    {
+     "begin": "20261116T080000",
+     "end": "20261116T170000"
+    }
+   ],
+   "lastUpdate": "20261116T080414",
+   "cause": "TRAVAUX",
+   "severity": "BLOQUANTE",
+   "title": "Bus 253 : Travaux - Arrêt(s) non desservi(s)",
+   "message": "<p>La ligne 253 est déviée : les arrêts situés entre Mairie et Toussaint Louverture ne sont plus desservis en direction de La Courneuve – Aubervilliers <RER>. Reprise estimée : 17h00. Raison : travaux.</p>",
+   "shortMessage": "Arrêt(s) non desservi(s)"
+  },
+  {
+   "id": "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14",
+   "applicationPeriods": [
+    {
+     "begin": "20261122T030000",
+     "end": "20261123T023000"
+    },
+    {
+     "begin": "20261129T030000",
+     "end": "20261130T023000"
+    },
+    {
+     "begin": "20261206T030000",
+     "end": "20261207T023000"
+    }
+   ],
+   "lastUpdate": "20261116T092213",
+   "cause": "PERTURBATION",
+   "severity": "BLOQUANTE",
+   "title": "Bus 272 : Manifestation - Arrêt(s) non desservi(s)",
+   "message": "<p>La ligne 272 sera déviée : les arrêts situés entre Gare d'Argenteuil et Antonin-Georges Belin ne seront plus desservis en direction de Sartrouville <RER>. Quand : du dimanche 22 novembre 2026 au lundi 7 décembre 2026, les dimanches de 03h00 à 02h30. Raison : manifestation.</p>",
+   "shortMessage": "Arrêt(s) non desservi(s)"
+  },
+  {
+   "id": "4250b699-fe98-4d0e-b9a0-b7bb0d0227cf",
+   "applicationPeriods": [
+    {
+     "begin": "20261201T223000",
+     "end": "20261209T073000"
+    }
+   ],
+   "lastUpdate": "20261115T015013",
+   "cause": "TRAVAUX",
+   "severity": "BLOQUANTE",
+   "title": "Bus N42 : Travaux - Arrêt(s) non desservi(s)",
+   "message": "<p>L'arrêt Magenta de la ligne N42 ne sera pas desservi en direction de Gare de l'Est. Quand : à partir du mardi 1 décembre 2026, jusqu'au mercredi 9 décembre 2026. Raison : travaux.</p>",
+   "shortMessage": "Arrêt(s) non desservi(s)"
+  }
+ ],
+ "lines": [
+  {
+   "id": "line:IDFM:C02246",
+   "name": "71",
+   "shortName": "71",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1094",
+   "impactedObjects": [
+    {
+     "type": "line",
+     "id": "line:IDFM:C02246",
+     "name": "71",
+     "disruptionIds": [
+      "0dfb13ea-b955-4116-a7e7-b3440091ca3b"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01176",
+   "name": "152",
+   "shortName": "152",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1094",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:36691",
+     "name": "Magenta",
+     "disruptionIds": [
+      "4250b699-fe98-4d0e-b9a0-b7bb0d0227cf"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01234",
+   "name": "234",
+   "shortName": "234",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1094",
+   "impactedObjects": [
+    {
+     "type": "line",
+     "id": "line:IDFM:C01234",
+     "name": "234",
+     "disruptionIds": [
+      "5efdaebc-3f86-4e39-bae3-8feb909d8cc0"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C02811",
+   "name": "4666",
+   "shortName": "4666",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1060",
+   "impactedObjects": [
+    {
+     "type": "line",
+     "id": "line:IDFM:C02811",
+     "name": "4666",
+     "disruptionIds": [
+      "1d4cc819-3a25-40d2-a827-3c3e0af4fb03"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01174",
+   "name": "150",
+   "shortName": "150",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1095",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:36691",
+     "name": "Magenta",
+     "disruptionIds": [
+      "4250b699-fe98-4d0e-b9a0-b7bb0d0227cf"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01245",
+   "name": "253",
+   "shortName": "253",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1095",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:24928",
+     "name": "Marcel Pointet",
+     "disruptionIds": [
+      "a6d8af40-a353-4ae6-868b-e55ef4cd96ac"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:24507",
+     "name": "Nelson Mandela",
+     "disruptionIds": [
+      "a6d8af40-a353-4ae6-868b-e55ef4cd96ac"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:24925",
+     "name": "Emile Zola",
+     "disruptionIds": [
+      "a6d8af40-a353-4ae6-868b-e55ef4cd96ac"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:24927",
+     "name": "Charles Péguy",
+     "disruptionIds": [
+      "a6d8af40-a353-4ae6-868b-e55ef4cd96ac"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C00644",
+   "name": "6543",
+   "shortName": "6543",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1051",
+   "impactedObjects": [
+    {
+     "type": "line",
+     "id": "line:IDFM:C00644",
+     "name": "6543",
+     "disruptionIds": [
+      "9fe24ae9-8681-41c2-88a8-400d7161e5dd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01374",
+   "name": "4",
+   "shortName": "4",
+   "mode": "Metro",
+   "networkId": "network:IDFM:Operator_100",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:463306",
+     "name": "Saint-Michel",
+     "disruptionIds": [
+      "e9363590-80f4-491f-9aee-d191819026d2"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:22137",
+     "name": "Saint-Michel",
+     "disruptionIds": [
+      "e9363590-80f4-491f-9aee-d191819026d2"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01378",
+   "name": "8",
+   "shortName": "8",
+   "mode": "Metro",
+   "networkId": "network:IDFM:Operator_100",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:462962",
+     "name": "République",
+     "disruptionIds": [
+      "78b41495-d1df-423f-a43a-be1a8dfe77ca"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:22199",
+     "name": "République",
+     "disruptionIds": [
+      "78b41495-d1df-423f-a43a-be1a8dfe77ca"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C02344",
+   "name": "T13",
+   "shortName": "T13",
+   "mode": "Tramway",
+   "networkId": "network:IDFM:Operator_1047",
+   "impactedObjects": [
+    {
+     "type": "line",
+     "id": "line:IDFM:C02344",
+     "name": "T13",
+     "disruptionIds": [
+      "033efa16-b682-4d0a-b1f0-40cde4be49fd",
+      "907a32db-1729-4039-9799-650369259f56",
+      "9cb8411e-e0ab-41e4-a6da-66a5cdc8de1d"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01727",
+   "name": "C",
+   "shortName": "C",
+   "mode": "RapidTransit",
+   "networkId": "network:IDFM:71",
+   "impactedObjects": [
+    {
+     "type": "line",
+     "id": "line:IDFM:C01727",
+     "name": "C",
+     "disruptionIds": [
+      "55d17d51-c36b-4103-9f4f-c4078ddd617c",
+      "8e9e08e6-b0ce-4a75-b69e-3dd9bdadb5b8"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:43201",
+     "name": "Saint-Gratien",
+     "disruptionIds": [
+      "55d17d51-c36b-4103-9f4f-c4078ddd617c"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:43077",
+     "name": "Épinay-sur-Seine",
+     "disruptionIds": [
+      "55d17d51-c36b-4103-9f4f-c4078ddd617c"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:43130",
+     "name": "Gennevilliers",
+     "disruptionIds": [
+      "55d17d51-c36b-4103-9f4f-c4078ddd617c"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:43230",
+     "name": "Les Grésillons",
+     "disruptionIds": [
+      "55d17d51-c36b-4103-9f4f-c4078ddd617c"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:43105",
+     "name": "Cernay",
+     "disruptionIds": [
+      "55d17d51-c36b-4103-9f4f-c4078ddd617c"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01729",
+   "name": "E",
+   "shortName": "E",
+   "mode": "RapidTransit",
+   "networkId": "network:IDFM:71",
+   "impactedObjects": [
+    {
+     "type": "line",
+     "id": "line:IDFM:C01729",
+     "name": "E",
+     "disruptionIds": [
+      "f6572214-88c3-4ef0-8379-f0aca53ef367",
+      "321d4392-14a2-40d2-8fb4-bfdb94e250f6"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:415093",
+     "name": "Neuilly - Porte Maillot",
+     "disruptionIds": [
+      "321d4392-14a2-40d2-8fb4-bfdb94e250f6"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:44201",
+     "name": "Noisy-le-Sec",
+     "disruptionIds": [
+      "321d4392-14a2-40d2-8fb4-bfdb94e250f6"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:487011",
+     "name": "Nanterre-La-Folie",
+     "disruptionIds": [
+      "321d4392-14a2-40d2-8fb4-bfdb94e250f6"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:43096",
+     "name": "Bondy",
+     "disruptionIds": [
+      "321d4392-14a2-40d2-8fb4-bfdb94e250f6"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:monomodalStopPlace:58718",
+     "name": "Haussmann Saint-Lazare",
+     "disruptionIds": [
+      "321d4392-14a2-40d2-8fb4-bfdb94e250f6"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01396",
+   "name": "N42",
+   "shortName": "N42",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1099",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:36691",
+     "name": "Magenta",
+     "disruptionIds": [
+      "4250b699-fe98-4d0e-b9a0-b7bb0d0227cf"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01393",
+   "name": "N52",
+   "shortName": "N52",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1099",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:7573",
+     "name": "Hôtel de Ville",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:27435",
+     "name": "Léon Feix",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01095",
+   "name": "58",
+   "shortName": "58",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1100",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:479499",
+     "name": "Sénat",
+     "disruptionIds": [
+      "4d860721-1b32-4a05-8284-4e3c60a76e15"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01116",
+   "name": "84",
+   "shortName": "84",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1100",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:479499",
+     "name": "Sénat",
+     "disruptionIds": [
+      "4d860721-1b32-4a05-8284-4e3c60a76e15"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:29817",
+     "name": "Luxembourg",
+     "disruptionIds": [
+      "4d860721-1b32-4a05-8284-4e3c60a76e15"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01843",
+   "name": "T4",
+   "shortName": "T4",
+   "mode": "Tramway",
+   "networkId": "network:IDFM:Operator_1042",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:471982",
+     "name": "Bondy",
+     "disruptionIds": [
+      "376e400a-5014-4d25-be62-b99b6f4305fb"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01121",
+   "name": "89",
+   "shortName": "89",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1098",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:479499",
+     "name": "Sénat",
+     "disruptionIds": [
+      "4d860721-1b32-4a05-8284-4e3c60a76e15"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:29817",
+     "name": "Luxembourg",
+     "disruptionIds": [
+      "4d860721-1b32-4a05-8284-4e3c60a76e15"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C00298",
+   "name": "6401",
+   "shortName": "6401",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1054",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:27435",
+     "name": "Léon Feix",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:7573",
+     "name": "Hôtel de Ville",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C00297",
+   "name": "6403",
+   "shortName": "6403",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1054",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:27435",
+     "name": "Léon Feix",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C00295",
+   "name": "6414",
+   "shortName": "6414",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1054",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:27435",
+     "name": "Léon Feix",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:7573",
+     "name": "Hôtel de Ville",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C00294",
+   "name": "6422",
+   "shortName": "6422",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1054",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:27435",
+     "name": "Léon Feix",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:7573",
+     "name": "Hôtel de Ville",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "line:IDFM:C01254",
+   "name": "272",
+   "shortName": "272",
+   "mode": "Bus",
+   "networkId": "network:IDFM:1096",
+   "impactedObjects": [
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:27435",
+     "name": "Léon Feix",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    },
+    {
+     "type": "stop_point",
+     "id": "stop_point:IDFM:7573",
+     "name": "Hôtel de Ville",
+     "disruptionIds": [
+      "79a7fc6b-ae19-470d-aa9c-ec851d5c9d14"
+     ]
+    }
+   ]
+  }
+ ],
+ "lastUpdatedDate": "2026-11-16T11:43:15.788Z"
+}
