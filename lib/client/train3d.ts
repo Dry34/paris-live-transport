@@ -11,7 +11,7 @@ const MODEL_FILES: Record<string, string> = {
 /** Below this zoom trains stay 2D markers (a 120 m train is a few pixels long). */
 export const MODEL_MIN_ZOOM = 13;
 /** Length (m) of the models along their x axis. */
-export const MODEL_LENGTH_M = 109;
+export const MODEL_LENGTH_M = 95;
 /** Shortest drawn length (px): zoomed out, the model is scaled up to stay readable. */
 export const MODEL_MIN_PX = 60;
 /** Width (m) of the models (y axis before rotation) and shortest drawn width (px). */
