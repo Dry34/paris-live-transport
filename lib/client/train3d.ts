@@ -1,12 +1,26 @@
 // Pure helpers for the 3D trains drawn over the map (three.js custom layer in components/train3dLayer.ts).
-import type { LngLat } from '../types';
+import type { LngLat, Network, VehicleRun } from '../types';
+import type { RunPosition } from './interpolate';
 import { stockForLine } from '../rollingStock';
 
+/** A glTF train model: length along x (m, centred on 0) and the x of each gap between two cars. */
+export interface ModelSpec { url: string; length: number; cuts: number[] }
+/** One car of a model: centre and half length along x (m). */
+export interface CarSpec { center: number; half: number }
+
+const FRANCILIEN: ModelSpec = { url: '/models/z50000.glb', length: 94.8, cuts: [-30.65, -17.35, -4.15, 4.15, 17.35, 30.65] };
+
 /** glTF model per rolling-stock model id. */
-const MODEL_FILES: Record<string, string> = {
-  'z50000-7': '/models/z50000.glb',
-  'z50000-8': '/models/z50000.glb',
+const MODEL_FILES: Record<string, ModelSpec> = {
+  'z50000-7': FRANCILIEN,
+  'z50000-8': FRANCILIEN,
 };
+
+/** Cars of a model, from one end to the other. */
+export function carsOf(spec: ModelSpec): CarSpec[] {
+  const bounds = [-spec.length / 2, ...spec.cuts, spec.length / 2];
+  return bounds.slice(1).map((hi, i) => ({ center: (bounds[i] + hi) / 2, half: (hi - bounds[i]) / 2 }));
+}
 
 /** Below this zoom trains stay 2D markers (a 120 m train is a few pixels long). */
 export const MODEL_MIN_ZOOM = 13;
@@ -24,7 +38,7 @@ const EARTH_CIRCUMFERENCE_M = 40_075_016.686;
 const rad = (d: number) => (d * Math.PI) / 180;
 
 /** 3D model of the line's usual rolling stock, or null when none is available. */
-export function model3dForLine(lineId: string): string | null {
+export function model3dForLine(lineId: string): ModelSpec | null {
   const first = stockForLine(lineId)[0];
   return (first && MODEL_FILES[first.id]) ?? null;
 }
@@ -55,4 +69,107 @@ export function modelScale(zoom: number, lat: number): { length: number; cross: 
   // A 4 m wide train is a hairline from above: widen it more than it is lengthened, within MAX_CROSS_RATIO.
   const cross = Math.min(length * MAX_CROSS_RATIO, Math.max(1, (MODEL_MIN_WIDTH_PX * metersPerPx) / MODEL_WIDTH_M));
   return { length, cross: Math.max(cross, length) };
+}
+
+/** Track around a train: polyline (lng/lat) of up to three consecutive sections, and the train's distance along it (m). */
+export interface Track { coords: LngLat[]; along: number }
+
+const sectionLengths = new WeakMap<LngLat[], number>();
+/** Length (m, local mercator scale) of a section's polyline, computed once per polyline. */
+const lengthOf = (coords: LngLat[]) => {
+  let len = sectionLengths.get(coords);
+  if (len === undefined) {
+    len = 0;
+    for (let i = 1; i < coords.length; i++) {
+      const [e, n] = localMeters(coords[i - 1], coords[i]);
+      len += Math.hypot(e, n);
+    }
+    sectionLengths.set(coords, len);
+  }
+  return len;
+};
+
+/**
+ * Sections around the train's position (the one behind, the current one and the one ahead), so that its cars can
+ * follow the curves; null when the position is not on one of the run's sections.
+ */
+export function trackAround(run: VehicleRun, network: Network, p: RunPosition): Track | null {
+  const quay = p.segmentKey !== null ? p.segmentKey.slice(0, p.segmentKey.indexOf('>')) : p.nextQuay;
+  const i = run.stops.findIndex((s) => s.quay === quay);
+  if (i < 0) return null;
+  const seg = (k: number) => (k < 0 || k + 1 >= run.stops.length ? undefined : network.segments[`${run.stops[k].quay}>${run.stops[k + 1].quay}`]);
+  // Moving on section i: sections i-1, i, i+1; standing at stop i: sections i-1, i.
+  const ks = p.segmentKey !== null ? [i - 1, i, i + 1] : [i - 1, i];
+  const coords: LngLat[] = [];
+  let along = 0;
+  for (const k of ks) {
+    const s = seg(k);
+    if (!s || s.coords.length < 2) continue;
+    const len = lengthOf(s.coords);
+    if (k < i) along += len;
+    else if (k === i && p.segmentKey !== null) along += Math.min(1, Math.max(0, p.fraction)) * len;
+    coords.push(...(coords.length > 0 ? s.coords.slice(1) : s.coords));
+  }
+  return coords.length >= 2 ? { coords, along } : null;
+}
+
+/** Ground position (m east/north of the origin) and heading (rad, counter-clockwise from east) of one car. */
+export interface CarPose { e: number; n: number; heading: number }
+
+/** Share of a car's half length between its centre and each bogie, the points that sit on the track. */
+const BOGIE_RATIO = 0.75;
+/** Half window (m) of the moving average smoothing the track, and its number of samples on each side. */
+const SMOOTH_M = 50;
+const SMOOTH_STEPS = 6;
+
+/**
+ * Places every car on the track: each one rests on two bogies on the polyline, so the train bends in curves. `stretch`
+ * lengthens the train (zoomed out); past the track's ends the last direction is extended.
+ */
+export function carPoses(track: Track, cars: CarSpec[], stretch: number, origin: LngLat): CarPose[] {
+  const pts: [number, number][] = [];
+  for (const c of track.coords) {
+    const q = localMeters(origin, c);
+    const last = pts[pts.length - 1];
+    if (!last || Math.hypot(q[0] - last[0], q[1] - last[1]) > 1e-6) pts.push(q);
+  }
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = cum[cum.length - 1];
+  const raw = (d: number): [number, number] => {
+    if (pts.length === 1) return pts[0];
+    let i = 1;
+    if (d >= total) i = pts.length - 1;
+    else if (d > 0) {
+      let hi = pts.length - 1; // first vertex at or past d
+      while (i < hi) {
+        const mid = (i + hi) >> 1;
+        if (cum[mid] < d) i = mid + 1;
+        else hi = mid;
+      }
+    }
+    const a = pts[i - 1];
+    const b = pts[i];
+    const t = (d - cum[i - 1]) / (cum[i] - cum[i - 1]); // < 0 or > 1 extrapolates past the ends
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  };
+  // Moving average along the track: sections meet with kinks where two shapes join (a quay off the rails, a
+  // parallel track), which would set a car across the track.
+  const at = (d: number): [number, number] => {
+    let e = 0;
+    let n = 0;
+    for (let k = -SMOOTH_STEPS; k <= SMOOTH_STEPS; k++) {
+      const [x, y] = raw(d + (k * SMOOTH_M * stretch) / SMOOTH_STEPS);
+      e += x;
+      n += y;
+    }
+    return [e / (2 * SMOOTH_STEPS + 1), n / (2 * SMOOTH_STEPS + 1)];
+  };
+  return cars.map((car) => {
+    const s = track.along + car.center * stretch;
+    const h = car.half * BOGIE_RATIO * stretch;
+    const [ae, an] = at(s - h);
+    const [be, bn] = at(s + h);
+    return { e: (ae + be) / 2, n: (an + bn) / 2, heading: Math.atan2(bn - an, be - ae) };
+  });
 }

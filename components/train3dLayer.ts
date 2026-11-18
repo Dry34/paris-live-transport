@@ -1,10 +1,26 @@
-// MapLibre custom layer drawing 3D train models (three.js, one InstancedMesh per glTF file) at the
-// trains' animated positions. three.js is loaded lazily, only once the map is zoomed in enough.
+// MapLibre custom layer drawing 3D train models at the trains' animated positions. Each model is cut into its cars
+// (three.js, one InstancedMesh per car), and every car is set on the track so trains bend in curves. three.js is
+// loaded lazily, only once the map is zoomed in enough.
 import type { CustomLayerInterface, Map as MlMap } from 'maplibre-gl';
 import type { LngLat } from '@/lib/types';
-import { headingRad, localMeters, mercatorUnitsPerMeter, MODEL_MIN_ZOOM, modelScale, toMercator } from '@/lib/client/train3d';
+import {
+  carPoses,
+  carsOf,
+  headingRad,
+  localMeters,
+  mercatorUnitsPerMeter,
+  MODEL_MIN_ZOOM,
+  modelScale,
+  toMercator,
+  type CarSpec,
+  type ModelSpec,
+  type Track,
+} from '@/lib/client/train3d';
 
-export interface Train3d { model: string; coord: LngLat; bearing: number | null }
+/** A train to draw: its model, the track around it (null: drawn straight along its bearing) and its position. */
+export interface Train3d { spec: ModelSpec; track: Track | null; coord: LngLat; bearing: number | null }
+
+interface LoadedModel { cars: CarSpec[]; meshes: import('three').InstancedMesh[] }
 
 export interface Train3dLayer extends CustomLayerInterface {
   /** Trains to draw on the next frame. */
@@ -17,19 +33,63 @@ const ORIGIN: LngLat = [2.35, 48.85];
 
 type Three = typeof import('three');
 
+/**
+ * Splits a model into one geometry per car, each centred on its car: a connected part goes to the car its centre
+ * falls in (x before rotation is the length axis).
+ */
+function splitCars(g: import('three').BufferGeometry, cars: CarSpec[]): import('three').BufferGeometry[] {
+  const pos = g.getAttribute('position');
+  const index = g.getIndex();
+  const tri = (t: number, k: number) => (index ? index.getX(t * 3 + k) : t * 3 + k);
+  const triCount = index ? index.count / 3 : pos.count / 3;
+  const parent = Array.from({ length: pos.count }, (_, i) => i);
+  const find = (x: number): number => {
+    while (parent[x] !== x) x = parent[x] = parent[parent[x]];
+    return x;
+  };
+  for (let t = 0; t < triCount; t++) {
+    parent[find(tri(t, 0))] = find(tri(t, 1));
+    parent[find(tri(t, 1))] = find(tri(t, 2));
+  }
+  const span = new Map<number, [number, number]>();
+  for (let v = 0; v < pos.count; v++) {
+    const r = find(v);
+    const x = pos.getX(v);
+    const s = span.get(r);
+    if (s) span.set(r, [Math.min(s[0], x), Math.max(s[1], x)]);
+    else span.set(r, [x, x]);
+  }
+  const carOf = (x: number) => {
+    const i = cars.findIndex((c) => x <= c.center + c.half);
+    return i < 0 ? cars.length - 1 : i;
+  };
+  const lists: number[][] = cars.map(() => []);
+  for (let t = 0; t < triCount; t++) {
+    const [lo, hi] = span.get(find(tri(t, 0)))!;
+    lists[carOf((lo + hi) / 2)].push(tri(t, 0), tri(t, 1), tri(t, 2));
+  }
+  return lists.map((list, i) => {
+    const part = g.clone();
+    part.setIndex(list);
+    part.translate(-cars[i].center, 0, 0);
+    return part;
+  });
+}
+
 export function createTrain3dLayer(id = 'trains-3d'): Train3dLayer {
   let map: MlMap | null = null;
   let three: Three | null = null;
   let renderer: import('three').WebGLRenderer | null = null;
   let scene: import('three').Scene | null = null;
   let camera: import('three').Camera | null = null;
-  const meshes = new Map<string, import('three').InstancedMesh | 'loading' | 'failed'>();
+  const models = new Map<string, LoadedModel | 'loading' | 'failed'>();
   let trains: Train3d[] = [];
   let loadingThree = false;
 
-  const loadModel = (url: string) => {
-    if (!three || !scene || meshes.has(url)) return;
-    meshes.set(url, 'loading');
+  const loadModel = (spec: ModelSpec) => {
+    const url = spec.url;
+    if (!three || !scene || models.has(url)) return;
+    models.set(url, 'loading');
     const T = three;
     void import('three/examples/jsm/loaders/GLTFLoader.js')
       .then(({ GLTFLoader }) => new GLTFLoader().loadAsync(url))
@@ -45,16 +105,21 @@ export function createTrain3dLayer(id = 'trains-3d'): Train3dLayer {
         g.translate(0, 0, -(g.boundingBox?.min.z ?? 0)); // wheels on the ground
         g.computeVertexNormals();
         const material = new T.MeshLambertMaterial({ vertexColors: g.hasAttribute('color'), color: g.hasAttribute('color') ? 0xffffff : 0xd0d4da });
-        const mesh = new T.InstancedMesh(g, material, MAX_INSTANCES);
-        mesh.count = 0;
-        mesh.frustumCulled = false;
-        scene.add(mesh);
-        meshes.set(url, mesh);
+        const cars = carsOf(spec);
+        const meshes = splitCars(g, cars).map((part) => {
+          const mesh = new T.InstancedMesh(part, material, MAX_INSTANCES);
+          mesh.count = 0;
+          mesh.frustumCulled = false;
+          scene!.add(mesh);
+          return mesh;
+        });
+        g.dispose();
+        models.set(url, { cars, meshes });
         map?.triggerRepaint();
       })
       .catch((e) => {
         console.error('[trains-3d]', e);
-        meshes.set(url, 'failed');
+        models.set(url, 'failed');
       });
   };
 
@@ -88,8 +153,8 @@ export function createTrain3dLayer(id = 'trains-3d'): Train3dLayer {
     },
     onRemove() {
       renderer?.dispose();
-      for (const mesh of meshes.values()) if (typeof mesh !== 'string') mesh.geometry.dispose();
-      meshes.clear();
+      for (const model of models.values()) if (typeof model !== 'string') for (const mesh of model.meshes) mesh.geometry.dispose();
+      models.clear();
       renderer = null;
       scene = null;
       map = null;
@@ -111,22 +176,34 @@ export function createTrain3dLayer(id = 'trains-3d'): Train3dLayer {
       const k = modelScale(zoom, map.getCenter().lat);
       const scale = new T.Vector3(k.length, k.cross, k.cross);
       const counts = new Map<string, number>();
+      const at = new T.Vector3();
       for (const t of trains) {
-        const mesh = meshes.get(t.model);
-        if (mesh === undefined) loadModel(t.model);
-        if (!mesh || typeof mesh === 'string') continue;
-        const i = counts.get(t.model) ?? 0;
+        const model = models.get(t.spec.url);
+        if (model === undefined) loadModel(t.spec);
+        if (!model || typeof model === 'string') continue;
+        const i = counts.get(t.spec.url) ?? 0;
         if (i >= MAX_INSTANCES) continue;
-        const [e, n] = localMeters(ORIGIN, t.coord);
-        matrix.q.setFromAxisAngle(up, t.bearing === null ? 0 : headingRad(t.bearing));
-        matrix.m.compose(new T.Vector3(e, n, 0), matrix.q, scale);
-        mesh.setMatrixAt(i, matrix.m);
-        counts.set(t.model, i + 1);
+        const poses = t.track
+          ? carPoses(t.track, model.cars, k.length, ORIGIN)
+          : model.cars.map((c) => {
+              // No track: straight along the bearing.
+              const [e, n] = localMeters(ORIGIN, t.coord);
+              const heading = t.bearing === null ? 0 : headingRad(t.bearing);
+              return { e: e + Math.cos(heading) * c.center * k.length, n: n + Math.sin(heading) * c.center * k.length, heading };
+            });
+        poses.forEach((pose, c) => {
+          matrix.q!.setFromAxisAngle(up, pose.heading);
+          matrix.m!.compose(at.set(pose.e, pose.n, 0), matrix.q!, scale);
+          model.meshes[c].setMatrixAt(i, matrix.m!);
+        });
+        counts.set(t.spec.url, i + 1);
       }
-      for (const [url, mesh] of meshes) {
-        if (typeof mesh === 'string') continue;
-        mesh.count = counts.get(url) ?? 0;
-        mesh.instanceMatrix.needsUpdate = true;
+      for (const [url, model] of models) {
+        if (typeof model === 'string') continue;
+        for (const mesh of model.meshes) {
+          mesh.count = counts.get(url) ?? 0;
+          mesh.instanceMatrix.needsUpdate = true;
+        }
       }
       const [ox, oy] = toMercator(ORIGIN);
       const s = mercatorUnitsPerMeter(ORIGIN[1]);
