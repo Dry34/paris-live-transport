@@ -13,6 +13,8 @@ import { panIntoView, popupPadding } from '@/lib/client/popupView';
 import { VehiclePopup } from './VehiclePopup';
 import { createTrain3dLayer, type Train3d, type Train3dLayer } from './train3dLayer';
 import { model3dForLine, MODEL_MIN_ZOOM, trackAround } from '@/lib/client/train3d';
+import { runUnits } from '@/lib/client/trainProfile';
+import { stockForLine } from '@/lib/rollingStock';
 
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const STYLE_DARK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
@@ -330,7 +332,9 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         if (!p) continue;
         positions.set(run.id, p);
         const model = model3dForLine(run.lineId);
-        if (model && show3d) models.push({ spec: model, track: trackAround(run, network, p), coord: p.coord, bearing: p.bearing });
+        if (model && show3d) {
+          models.push({ spec: model, units: runUnits(run, stockForLine(run.lineId)[0]), track: trackAround(run, network, p), coord: p.coord, bearing: p.bearing });
+        }
         features.push({
           type: 'Feature',
           properties: { id: run.id, color: line.color, textColor: line.textColor, label: line.shortName, m3d: model !== null, ...(p.bearing === null ? {} : { bearing: p.bearing }) },

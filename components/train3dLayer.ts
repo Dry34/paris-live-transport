@@ -6,6 +6,7 @@ import type { LngLat } from '@/lib/types';
 import {
   carPoses,
   carsOf,
+  trainCars,
   headingRad,
   localMeters,
   mercatorUnitsPerMeter,
@@ -18,7 +19,7 @@ import {
 } from '@/lib/client/train3d';
 
 /** A train to draw: its model, the track around it (null: drawn straight along its bearing) and its position. */
-export interface Train3d { spec: ModelSpec; track: Track | null; coord: LngLat; bearing: number | null }
+export interface Train3d { spec: ModelSpec; units: number; track: Track | null; coord: LngLat; bearing: number | null }
 
 interface LoadedModel { cars: CarSpec[]; meshes: import('three').InstancedMesh[] }
 
@@ -182,10 +183,11 @@ export function createTrain3dLayer(id = 'trains-3d'): Train3dLayer {
         if (model === undefined) loadModel(t.spec);
         if (!model || typeof model === 'string') continue;
         const i = counts.get(t.spec.url) ?? 0;
-        if (i >= MAX_INSTANCES) continue;
+        if (i + t.units > MAX_INSTANCES) continue;
+        const cars = trainCars(t.spec, t.units);
         const poses = t.track
-          ? carPoses(t.track, model.cars, k.length, ORIGIN)
-          : model.cars.map((c) => {
+          ? carPoses(t.track, cars, k.length, ORIGIN)
+          : cars.map((c) => {
               // No track: straight along the bearing.
               const [e, n] = localMeters(ORIGIN, t.coord);
               const heading = t.bearing === null ? 0 : headingRad(t.bearing);
@@ -194,9 +196,10 @@ export function createTrain3dLayer(id = 'trains-3d'): Train3dLayer {
         poses.forEach((pose, c) => {
           matrix.q!.setFromAxisAngle(up, pose.heading);
           matrix.m!.compose(at.set(pose.e, pose.n, 0), matrix.q!, scale);
-          model.meshes[c].setMatrixAt(i, matrix.m!);
+          // unit u of the train uses instance i + u of each car mesh
+          model.meshes[cars[c].mesh].setMatrixAt(i + Math.floor(c / model.cars.length), matrix.m!);
         });
-        counts.set(t.spec.url, i + 1);
+        counts.set(t.spec.url, i + t.units);
       }
       for (const [url, model] of models) {
         if (typeof model === 'string') continue;

@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type { Network, VehicleRun } from '@/lib/types';
 import type { RunPosition } from '@/lib/client/interpolate';
-import { carPoses, carsOf, headingRad, localMeters, model3dForLine, modelScale, MODEL_MIN_ZOOM, trackAround } from '@/lib/client/train3d';
+import { carPoses, carsOf, trainCars, headingRad, localMeters, model3dForLine, modelScale, MODEL_MIN_ZOOM, trackAround } from '@/lib/client/train3d';
 
 describe('modèles 3D', () => {
   it('donne le Francilien aux lignes en Z 50000 et rien aux autres', () => {
@@ -124,5 +124,24 @@ describe('raccords de sections', () => {
     const track = { coords: [at(-300, 0), at(0, 0), at(17, 50), at(300, 50)], along: 300 };
     const cars = carsOf(model3dForLine('C01737')!);
     for (const p of carPoses(track, cars, 1, O)) expect(Math.abs(p.heading), `${p.e},${p.n}`).toBeLessThan((60 * Math.PI) / 180);
+  });
+});
+
+describe('MI 09 du RER A', () => {
+  it('donne le MI 09 au RER A, avec son fichier', () => {
+    const spec = model3dForLine('C01742')!;
+    expect(spec.url).toBe('/models/mi09.glb');
+    expect(existsSync(path.join(process.cwd(), 'public', spec.url))).toBe(true);
+    expect(carsOf(spec)).toHaveLength(5);
+  });
+
+  it('accouple deux éléments bout à bout, centrés sur le train', () => {
+    const spec = model3dForLine('C01742')!;
+    const cars = trainCars(spec, 2);
+    expect(cars).toHaveLength(10);
+    expect(cars[0].center - cars[0].half).toBeCloseTo(-spec.length);
+    expect(cars[9].center + cars[9].half).toBeCloseTo(spec.length);
+    expect(cars.map((c) => c.mesh)).toEqual([0, 1, 2, 3, 4, 0, 1, 2, 3, 4]);
+    expect(trainCars(spec, 1)).toEqual(carsOf(spec).map((c, mesh) => ({ ...c, mesh })));
   });
 });
