@@ -75,6 +75,7 @@ export function AppShell({ initialLineId }: { initialLineId: string | null }) {
           centerStationId={centerStationId}
           panelInset={inset}
           onStationClick={setStationId}
+          onOpenLine={onFocusLine}
           onShownCountChange={setShownCount}
         />
       )}

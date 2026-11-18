@@ -9,6 +9,7 @@ import type { Network, Snapshot, VehicleRun } from '@/lib/types';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
 import { fadeColor, lineBounds } from '@/lib/client/lineFocus';
 import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
+import { panIntoView, popupPadding } from '@/lib/client/popupView';
 import { VehiclePopup } from './VehiclePopup';
 
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
@@ -64,10 +65,17 @@ export interface LiveMapProps {
   /** Map area covered by the side panel, kept clear when framing. */
   panelInset: { left: number; bottom: number };
   onStationClick: (stationId: string) => void;
+  /** Header of the train card clicked: focus that line. */
+  onOpenLine: (lineId: string) => void;
   onShownCountChange?: (count: number) => void;
 }
 
-interface SelectedView { run: VehicleRun; position: RunPosition; now: number }
+interface SelectedView { run: VehicleRun; runs: VehicleRun[]; fetchedAt: number; position: RunPosition; now: number }
+/** Train card width on desktop; narrower screens keep a 12 px margin on each side. */
+const POPUP_MAX_WIDTH = 'min(340px, calc(100vw - 24px))';
+/** Gap kept between the train card and the map edges or the side panel. */
+const POPUP_MARGIN = 12;
+const POPUP_PAN_MS = 300;
 
 function shapesData(network: Network, dark: boolean): FC {
   const features: GeoJSON.Feature[] = [];
@@ -113,7 +121,7 @@ function applyFocusStyle(m: MlMap, focus: string | null) {
   m.setLayerZoomRange('station-labels', focus ? 0 : STATION_LABELS_MINZOOM, 24);
 }
 
-export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onShownCountChange }: LiveMapProps) {
+export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onOpenLine, onShownCountChange }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const readyRef = useRef(false);
@@ -124,7 +132,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const framedRef = useRef<string | null>(null);
   const positionsRef = useRef(new Map<string, RunPosition>());
   const selectedRef = useRef<string | null>(null);
-  const callbacksRef = useRef({ onStationClick, onShownCountChange });
+  const callbacksRef = useRef({ onStationClick, onOpenLine, onShownCountChange });
   const popupRef = useRef<Popup | null>(null);
   const [mapLib, setMapLib] = useState<typeof import('maplibre-gl') | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -133,7 +141,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const [mapReady, setMapReady] = useState(false);
 
   snapshotRef.current = snapshot;
-  callbacksRef.current = { onStationClick, onShownCountChange };
+  callbacksRef.current = { onStationClick, onOpenLine, onShownCountChange };
   insetRef.current = panelInset;
   selectedRef.current = selectedId;
 
@@ -409,20 +417,65 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
     }
     if (readyRef.current) map.setFilter('vehicle-halo', ['==', ['get', 'id'], selectedId]);
     const node = document.createElement('div');
-    const popup = new mapLib.Popup({ closeOnClick: false, offset: 14, maxWidth: '280px', focusAfterOpen: false })
+    const popup = new mapLib.Popup({
+      closeOnClick: false,
+      offset: 14,
+      maxWidth: POPUP_MAX_WIDTH,
+      focusAfterOpen: false,
+      padding: popupPadding(insetRef.current, POPUP_MARGIN),
+    })
       .setLngLat(pos.coord)
       .setDOMContent(node)
       .addTo(map);
     popup.on('close', () => setSelectedId((id) => (id === selectedId ? null : id)));
     popupRef.current = popup;
     setPopupNode(node);
+
+    // Keep the card inside the free map area (off the side panel, above the bottom sheet) when it opens, grows (fold
+    // opened) or after a programmatic camera move (line framed from the header). A drag or zoom by the user disarms
+    // it until the next click inside the card, so the map never fights the user.
+    let armed = true;
+    let ownPan = false;
+    const el = popup.getElement();
+    const keepInView = () => {
+      if (!armed || map.isMoving()) return;
+      const c = map.getContainer().getBoundingClientRect();
+      const pad = popupPadding(insetRef.current, POPUP_MARGIN);
+      const area = { left: c.left + pad.left, top: c.top + pad.top, right: c.right - pad.right, bottom: c.bottom - pad.bottom };
+      const [x, y] = panIntoView(el.getBoundingClientRect(), area);
+      if (Math.abs(x) < 1 && Math.abs(y) < 1) return;
+      ownPan = true;
+      map.panBy([x, y], { duration: POPUP_PAN_MS });
+    };
+    const arm = () => (armed = true);
+    const onMoveStart = (e: { originalEvent?: unknown }) => {
+      if (e.originalEvent) armed = false;
+    };
+    const onMoveEnd = () => {
+      if (ownPan) ownPan = false;
+      else keepInView();
+    };
+    const resizes = new ResizeObserver(keepInView);
+    resizes.observe(el);
+    el.addEventListener('click', arm);
+    map.on('movestart', onMoveStart);
+    map.on('moveend', onMoveEnd);
     return () => {
+      resizes.disconnect();
+      el.removeEventListener('click', arm);
+      map.off('movestart', onMoveStart);
+      map.off('moveend', onMoveEnd);
       popupRef.current = null;
       popup.remove();
       setPopupNode(null);
       if (readyRef.current && mapRef.current) mapRef.current.setFilter('vehicle-halo', ['==', ['get', 'id'], '']);
     };
   }, [selectedId, mapLib]);
+
+  // The panel's size changes (sheet dragged, window resized): the open card keeps avoiding it.
+  useEffect(() => {
+    popupRef.current?.setPadding(popupPadding(panelInset, POPUP_MARGIN));
+  }, [panelInset]);
 
   // Popup text and the shown-trains counter refresh once per second (not per frame).
   useEffect(() => {
@@ -433,14 +486,15 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         setSelectedView(null);
         return;
       }
-      const run = snapshotRef.current?.runs.find((r) => r.id === id);
+      const snap = snapshotRef.current;
+      const run = snap?.runs.find((r) => r.id === id);
       const position = positionsRef.current.get(id);
-      if (!run || !position) {
+      if (!snap || !run || !position) {
         setSelectedId(null);
         setSelectedView(null);
         return;
       }
-      setSelectedView({ run, position, now: Date.now() });
+      setSelectedView({ run, runs: snap.runs, fetchedAt: snap.fetchedAt, position, now: Date.now() });
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -448,7 +502,6 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   }, [selectedId]);
 
   const selectedLine = selectedView ? network.lines[selectedView.run.lineId] : null;
-  const nextQuay = selectedView?.position.nextQuay;
 
   return (
     <>
@@ -458,11 +511,14 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         selectedLine &&
         createPortal(
           <VehiclePopup
-            line={selectedLine}
-            destination={selectedView.run.destination}
+            key={selectedView.run.id}
+            network={network}
+            run={selectedView.run}
+            runs={selectedView.runs}
             position={selectedView.position}
-            nextStopName={nextQuay ? (network.quays[nextQuay]?.name ?? null) : null}
+            fetchedAt={selectedView.fetchedAt}
             now={selectedView.now}
+            onOpenLine={(lineId) => callbacksRef.current.onOpenLine(lineId)}
           />,
           popupNode,
         )}

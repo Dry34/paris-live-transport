@@ -81,7 +81,7 @@ function inferredPrevious(jr: Journey, net: Network): Previous {
   const pred = preds.find((p) => net.segments[`${p.quay}>${c0.quay}`]);
   if (!pred) return 'reject';
   const seconds = net.segments[`${pred.quay}>${c0.quay}`].seconds;
-  return { stop: { quay: pred.quay, arr: null, dep: at(c0) - seconds * 1000 }, inferred: true };
+  return { stop: { quay: pred.quay, arr: null, dep: at(c0) - seconds * 1000, delaySec: null }, inferred: true };
 }
 
 function isTerminus(quay: string, lineId: string, net: Network): boolean {
