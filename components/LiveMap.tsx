@@ -30,9 +30,9 @@ const BASEMAP_BG = { light: '#fafaf8', dark: '#0e0e0e' } as const;
 type FC = GeoJSON.FeatureCollection;
 const featureCollection = (features: GeoJSON.Feature[]): FC => ({ type: 'FeatureCollection', features });
 
-/** Direction arrow drawn as an SDF icon: a chevron just outside a centred circle of ARROW_CIRCLE_PX radius. */
+/** Direction arrow drawn as an SDF icon: a triangle sticking out of a centred circle of ARROW_CIRCLE_PX radius. */
 const ARROW_IMAGE = 'vehicle-arrow';
-const ARROW_SIZE_PX = 64;
+const ARROW_SIZE_PX = 96;
 const ARROW_CIRCLE_PX = 18;
 function arrowImage(): ImageData {
   const size = ARROW_SIZE_PX;
@@ -44,9 +44,9 @@ function arrowImage(): ImageData {
   const base = c - ARROW_CIRCLE_PX + 3; // base hidden under the circle's edge
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.moveTo(c, 2); // tip, pointing north
-  ctx.lineTo(c + 10, base);
-  ctx.lineTo(c - 10, base);
+  ctx.moveTo(c, 4); // tip, pointing north
+  ctx.lineTo(c + 16, base);
+  ctx.lineTo(c - 16, base);
   ctx.closePath();
   ctx.fill();
   return ctx.getImageData(0, 0, size, size);
@@ -225,9 +225,10 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
           'icon-ignore-placement': true,
         },
         paint: {
-          'icon-color': ['get', 'color'],
-          'icon-halo-color': media.matches ? '#10141b' : '#ffffff',
-          'icon-halo-width': 1,
+          // Contrasting fill + halo (not the line colour): the arrow sits on the track and must stand out.
+          'icon-color': media.matches ? '#ffffff' : '#141821',
+          'icon-halo-color': media.matches ? '#141821' : '#ffffff',
+          'icon-halo-width': 1.6,
         },
       });
       m.addLayer({
