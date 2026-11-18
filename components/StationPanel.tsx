@@ -19,9 +19,8 @@ export function StationPanel({ stationId, network, onClose }: { stationId: strin
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
+    // A new station remounts the panel (key in AppShell), so data and failure start empty.
     let alive = true;
-    setData(null);
-    setFailed(false);
     const load = () =>
       fetch(`/api/stops/${encodeURIComponent(stationId)}`, { cache: 'no-store' })
         .then((r) => {

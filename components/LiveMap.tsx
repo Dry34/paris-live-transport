@@ -2,7 +2,7 @@
 // Full-screen MapLibre map: line shapes, stations and estimated train positions animated
 // with requestAnimationFrame (capped at ~30 fps) from the latest snapshot. With a focused line the map frames
 // it, fades the other shapes and only draws that line's trains and stations.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DataDrivenPropertyValueSpecification, GeoJSONSource, IControl, Map as MlMap, Popup } from 'maplibre-gl';
 import type { Network, Snapshot, VehicleRun } from '@/lib/types';
@@ -176,10 +176,13 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
-  snapshotRef.current = snapshot;
-  callbacksRef.current = { onStationClick, onOpenLine, onShownCountChange };
-  insetRef.current = panelInset;
-  selectedRef.current = selectedId;
+  // Latest props/state for the animation loop and map handlers, synced once the render is committed.
+  useLayoutEffect(() => {
+    snapshotRef.current = snapshot;
+    callbacksRef.current = { onStationClick, onOpenLine, onShownCountChange };
+    insetRef.current = panelInset;
+    selectedRef.current = selectedId;
+  });
 
   // Map creation, layers and the animation loop.
   useEffect(() => {
