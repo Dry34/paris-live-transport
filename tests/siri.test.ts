@@ -90,6 +90,9 @@ describe('parseEstimatedTimetable', () => {
       direction: 'Retour',
       destination: 'Marne-la-Vallée Chessy',
       operator: 'SNCF',
+      mission: null,
+      trainNumber: null,
+      length: null,
       calls: [
         { quay: '22083', arr: Date.parse('2026-11-16T10:01:00.000Z'), dep: null, delaySec: null },
         { quay: 'monomodalStopPlace:58937', arr: Date.parse('2026-11-16T10:05:00.000Z'), dep: Date.parse('2026-11-16T10:06:00.000Z'), delaySec: 30 },
@@ -142,5 +145,46 @@ describe('delaySec par arrêt', () => {
   });
   it('seulement Expected → null', () => {
     expect(delayOf({ ExpectedArrivalTime: '2026-11-16T10:02:05Z' })).toBeNull();
+  });
+});
+
+describe('mission, numéro de train et longueur', () => {
+  const j = (ref: string, extra: Record<string, unknown>) => ({
+    LineRef: { value: 'STIF:Line::C01742:' },
+    DirectionRef: { value: 'Aller' },
+    DatedVehicleJourneyRef: { value: ref },
+    DestinationName: [{ value: 'X' }],
+    EstimatedCalls: { EstimatedCall: [{ StopPointRef: { value: 'STIF:StopPoint:Q:123:' }, ExpectedArrivalTime: '2026-11-16T10:01:00Z' }] },
+    ...extra,
+  });
+
+  it('course SNCF : mission, numéro et longueur', () => {
+    const [a] = parseEstimatedTimetable(
+      wrap([j('SNCF_X:VehicleJourney::1:LOC', { JourneyNote: [{ value: 'QIWI' }], VehicleJourneyName: [{ value: 'QIWI60' }], VehicleFeatureRef: ['longTrain'] })]),
+    ).journeys;
+    expect([a.mission, a.trainNumber, a.length]).toEqual(['QIWI', 'QIWI60', 'long']);
+  });
+
+  it('shortTrain → short ; champs absents → null', () => {
+    const [a, b] = parseEstimatedTimetable(
+      wrap([j('SNCF_X:1', { VehicleFeatureRef: ['shortTrain'] }), j('SNCF_X:2', {})]),
+    ).journeys;
+    expect(a.length).toBe('short');
+    expect([b.mission, b.trainNumber, b.length]).toEqual([null, null, null]);
+  });
+
+  it('course RATP : tout null même si les champs sont présents', () => {
+    const [a] = parseEstimatedTimetable(
+      wrap([j('RATP-SIV:1', { JourneyNote: [{ value: 'QIWI' }], VehicleJourneyName: [{ value: 'QIWI60' }], VehicleFeatureRef: ['shortTrain'] })]),
+    ).journeys;
+    expect([a.mission, a.trainNumber, a.length]).toEqual([null, null, null]);
+  });
+
+  it('fixture : part des courses SNCF avec mission / numéro / longueur', () => {
+    const rail = parseEstimatedTimetable(sample).journeys.filter((x) => x.operator === 'SNCF');
+    expect(rail.length).toBeGreaterThan(0);
+    for (const k of ['mission', 'trainNumber', 'length'] as const) {
+      expect(rail.filter((x) => x[k]).length).toBe(rail.length);
+    }
   });
 });

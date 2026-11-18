@@ -258,3 +258,27 @@ describe('buildRuns delaySec', () => {
     expect(r.stops[1].delaySec).toBe(10);
   });
 });
+
+describe('buildRuns mission, numéro, longueur', () => {
+  const net = miniNetwork();
+  it('recopie les champs sur la course', () => {
+    const [r] = buildRuns([journey('SNCF_1', [['A', T + 60 * S], ['B', T + 120 * S]], { operator: 'SNCF', mission: 'QIWI', trainNumber: 'QIWI60', length: 'long' })], net, null, T);
+    expect([r.mission, r.trainNumber, r.length]).toEqual(['QIWI', 'QIWI60', 'long']);
+  });
+  it('course sans champs → null', () => {
+    const [r] = buildRuns([journey('j1', [['A', T + 60 * S], ['B', T + 120 * S]])], net, null, T);
+    expect([r.mission, r.trainNumber, r.length]).toEqual([null, null, null]);
+  });
+  it('fusion de doublons : les champs d\u2019un seul des deux sont conservés', () => {
+    const calls1: [string, number][] = [['A', T - 40 * S], ['B', T + 30 * S]];
+    const calls2: [string, number][] = [['C', T + 110 * S]];
+    for (const [a, b] of [
+      [{ mission: 'QIWI', trainNumber: 'QIWI60', length: 'long' as const }, {}],
+      [{}, { mission: 'QIWI', trainNumber: 'QIWI60', length: 'long' as const }],
+    ]) {
+      const runs = buildRuns([journey('j1', calls1, a), journey('j2', calls2, b)], net, null, T);
+      expect(runs).toHaveLength(1);
+      expect([runs[0].mission, runs[0].trainNumber, runs[0].length]).toEqual(['QIWI', 'QIWI60', 'long']);
+    }
+  });
+});

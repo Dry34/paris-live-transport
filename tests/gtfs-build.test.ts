@@ -6,6 +6,7 @@ import type { LngLat, Pattern, Quay } from '../lib/types';
 import { cumulativeLengths, distanceM } from '../lib/geo';
 import {
   buildPatterns,
+  lineShapesFromSegments,
   buildSegments,
   buildStations,
   computeRuntimes,
@@ -154,5 +155,34 @@ describe('simplifyLine', () => {
   it('drops points within tolerance and keeps corners', () => {
     const line: LngLat[] = [[2.3, 48.85], [2.30001, 48.85000001], [2.301, 48.85], [2.301, 48.851]];
     expect(simplifyLine(line, 5)).toEqual([[2.3, 48.85], [2.301, 48.85], [2.301, 48.851]]);
+  });
+});
+
+describe('lineShapesFromSegments', () => {
+  const Q = (id: string, stationId: string, lon: number): Quay => ({ id, name: id, lon, lat: 48.9, stationId });
+  const quays: Record<string, Quay> = {
+    a: Q('a', 'SA', 2.0), b: Q('b', 'SB', 2.01), c: Q('c', 'SC', 2.02), d: Q('d', 'SD', 2.03),
+    a2: Q('a2', 'SA', 2.0), b2: Q('b2', 'SB', 2.01), c2: Q('c2', 'SC', 2.02),
+  };
+  const seg = (x: number, y: number) => ({ coords: [[x, 48.9], [(x + y) / 2, 48.9], [y, 48.9]] as LngLat[], seconds: 60 });
+  const segments = {
+    'a>b': seg(2.0, 2.01), 'b>c': seg(2.01, 2.02), 'c>d': seg(2.02, 2.03),
+    'c2>b2': seg(2.02, 2.01), 'b2>a2': seg(2.01, 2.0),
+    // A segment of another line through a station this line doesn't use: never drawn for L.
+    'x>y': { coords: [[2.5, 49], [2.6, 49]] as LngLat[], seconds: 60 },
+  };
+  const P = (quaysList: string[], trips: number, lineId = 'L'): Pattern => ({ lineId, directionId: 0, quays: quaysList, trips, headsign: '' });
+
+  it('draws only the stop-to-stop segments the line runs on, chained, each station pair once', () => {
+    const shapes = lineShapesFromSegments([P(['a', 'b', 'c', 'd'], 10), P(['c2', 'b2', 'a2'], 8), P(['x', 'y'], 5, 'OTHER')], segments, quays, 'L');
+    expect(shapes).toHaveLength(1);
+    expect(shapes[0][0]).toEqual([2.0, 48.9]);
+    expect(shapes[0].at(-1)).toEqual([2.03, 48.9]);
+    expect(shapes[0].some(([lon]) => lon > 2.1)).toBe(false);
+  });
+
+  it('starts a new polyline after a stretch already drawn', () => {
+    const shapes = lineShapesFromSegments([P(['b', 'c'], 10), P(['a', 'b', 'c', 'd'], 5)], segments, quays, 'L');
+    expect(shapes.map((s) => [s[0][0], s.at(-1)![0]])).toEqual([[2.01, 2.02], [2.0, 2.01], [2.02, 2.03]]);
   });
 });

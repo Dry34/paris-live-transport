@@ -13,6 +13,7 @@ import {
   buildStations,
   computeRuntimes,
   groupStopTimes,
+  lineShapesFromSegments,
   simplifyLine,
   stripIdfm,
   type GtfsStop,
@@ -166,8 +167,7 @@ async function main(): Promise<void> {
       textColor: `#${r.route_text_color || 'FFFFFF'}`,
       longName: r.route_long_name,
     };
-    const ids = new Set(patterns.filter((p) => p.lineId === id).map((p) => shapeIdOfPattern.get(p)).filter((x): x is string => !!x));
-    const lineShapes = [...ids].map((sid) => shapes.get(sid)).filter((s): s is LngLat[] => !!s).map((s) => roundCoords(simplifyLine(s, SIMPLIFY_M)));
+    const lineShapes = lineShapesFromSegments(patterns, rawSegments, quays, id).map((s) => roundCoords(simplifyLine(s, SIMPLIFY_M)));
     lines[id] = { ...info, shapes: lineShapes };
   }
 

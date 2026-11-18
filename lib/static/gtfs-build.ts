@@ -224,3 +224,39 @@ export function simplifyLine(line: LngLat[], toleranceM: number): LngLat[] {
   }
   return line.filter((_, k) => keep[k]);
 }
+
+/**
+ * A line's drawn trace, built from its own stop-to-stop segments (already checked against the stop
+ * positions) instead of the raw GTFS shapes, some of which follow another line's tracks (e.g. Transilien L
+ * shapes towards Saint-Lazare running through Colombes on the J tracks). Patterns are walked busiest
+ * first; consecutive new segments are chained into one polyline and each station pair is drawn once.
+ */
+export function lineShapesFromSegments(
+  patterns: Pattern[],
+  segments: Record<string, Segment>,
+  quays: Record<string, Quay>,
+  lineId: string,
+): LngLat[][] {
+  const seen = new Set<string>();
+  const out: LngLat[][] = [];
+  const station = (q: string) => quays[q]?.stationId ?? q;
+  for (const p of patterns.filter((x) => x.lineId === lineId).sort((a, b) => b.trips - a.trips)) {
+    let current: LngLat[] | null = null;
+    for (let i = 0; i + 1 < p.quays.length; i++) {
+      const seg = segments[`${p.quays[i]}>${p.quays[i + 1]}`];
+      const [s1, s2] = [station(p.quays[i]), station(p.quays[i + 1])];
+      const pair = s1 < s2 ? `${s1}|${s2}` : `${s2}|${s1}`;
+      if (!seg || seg.coords.length < 2 || seen.has(pair)) {
+        current = null;
+        continue;
+      }
+      seen.add(pair);
+      if (current) current.push(...seg.coords.slice(1));
+      else {
+        current = [...seg.coords];
+        out.push(current);
+      }
+    }
+  }
+  return out;
+}
