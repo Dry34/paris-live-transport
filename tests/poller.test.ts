@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { getPoller, Poller } from '@/lib/realtime/poller';
+import { defaultCacheDir, getPoller, Poller } from '@/lib/realtime/poller';
 import { PrimError } from '@/lib/realtime/prim-client';
 import { loadBudget, loadDisruptions, loadSnapshot, recordCall, saveSnapshot } from '@/lib/realtime/store';
 import type { VehicleRun } from '@/lib/types';
@@ -234,5 +234,42 @@ describe('Poller (perturbations)', () => {
     await p.tick();
     expect(calls).toBe(0);
     expect(p.disruptions().length).toBeGreaterThan(0);
+  });
+});
+
+describe('Poller.refresh (hébergement serverless)', () => {
+  it('appelle PRIM à la demande quand les données sont dues, sans boucle de fond', async () => {
+    const p = new Poller({ now, fetchEt: okFetch, fetchDisruptions: okDisruptions, dir, live: true });
+    expect(p.snapshot()).toBeNull();
+    await p.refresh();
+    expect(calls).toBe(1);
+    expect(p.snapshot()?.source).toBe('live');
+    clock += 10 * S; // pas encore dû
+    await p.refresh();
+    expect(calls).toBe(1);
+    clock += 100 * S;
+    await p.refresh();
+    expect(calls).toBe(2);
+  });
+
+  it('partage un même appel entre requêtes simultanées', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const slowFetch = async () => {
+      calls++;
+      await gate;
+      return emptyEt(clock);
+    };
+    const p = new Poller({ now, fetchEt: slowFetch, fetchDisruptions: okDisruptions, dir, live: true });
+    const a = p.refresh();
+    const b = p.refresh();
+    release();
+    await Promise.all([a, b]);
+    expect(calls).toBe(1);
+  });
+
+  it('garde son cache dans le dossier temporaire sur Vercel (fichiers du projet en lecture seule)', () => {
+    expect(defaultCacheDir({ VERCEL: '1' } as unknown as NodeJS.ProcessEnv)).toBe(path.join(tmpdir(), 'ltp-cache'));
+    expect(defaultCacheDir({} as unknown as NodeJS.ProcessEnv)).toBe(path.join(process.cwd(), '.cache'));
   });
 });

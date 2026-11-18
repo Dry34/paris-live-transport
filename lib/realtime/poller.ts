@@ -1,5 +1,6 @@
 // Server-side PRIM poller: one instance per process (globalThis), quota-safe, persisted, with a replay mode.
 import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { Disruption, Journey, Network, Snapshot } from '../types';
 import { isActiveAt, parseDisruptions } from './disruptions';
@@ -16,6 +17,14 @@ const RECHECK_MS = 5 * 60_000; // cap reached or outside the service window
 const MIN_LOOP_MS = 1_000;
 
 let networkCache: Network | null = null;
+
+/**
+ * Where the call budget and the last snapshots are kept: .cache/ in the project, or the temporary directory on
+ * Vercel, whose project files are read-only (writing there made every PRIM call fail before it was sent).
+ */
+export function defaultCacheDir(env: NodeJS.ProcessEnv = process.env): string {
+  return env.VERCEL ? path.join(tmpdir(), 'ltp-cache') : path.join(process.cwd(), '.cache');
+}
 
 /** Static network, read once per process from public/data/network.json. */
 export function getNetwork(): Network {
@@ -55,6 +64,7 @@ export class Poller {
   private replayDisruptions: Disruption[] | null = null;
   private replayJourneys: Journey[] | null = null;
   private started = false;
+  private inflight: Promise<number> | null = null;
 
   constructor(deps: Partial<PollerDeps> = {}) {
     const apiKey = process.env.PRIM_API_KEY;
@@ -67,7 +77,7 @@ export class Poller {
       now: deps.now ?? Date.now,
       fetchEt: deps.fetchEt ?? (() => fetchEstimatedTimetable(apiKey ?? '')),
       fetchDisruptions: deps.fetchDisruptions ?? (() => fetchDisruptions(apiKey ?? '')),
-      dir: deps.dir ?? path.join(process.cwd(), '.cache'),
+      dir: deps.dir ?? defaultCacheDir(),
       live,
     };
     if (live) {
@@ -89,7 +99,7 @@ export class Poller {
     const loop = async () => {
       let delay = RECHECK_MS;
       try {
-        delay = await this.tick();
+        delay = await this.refresh();
       } catch (e) {
         console.error('[poller] tick failed', e);
       }
@@ -97,6 +107,18 @@ export class Poller {
       timer.unref?.();
     };
     void loop();
+  }
+
+  /**
+   * Runs a scheduling step now, sharing it with any step already running. API routes await it so that each request
+   * brings the data up to date by itself: on serverless hosts (Vercel) the background loop is frozen between
+   * requests. Returns the delay until the next step.
+   */
+  refresh(): Promise<number> {
+    this.inflight ??= this.tick().finally(() => {
+      this.inflight = null;
+    });
+    return this.inflight;
   }
 
   /** One scheduling step: calls PRIM (or rebuilds the replay) if due. Returns the delay until the next step. */
