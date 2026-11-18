@@ -2,10 +2,11 @@
 // Full-screen MapLibre map: line shapes, stations and estimated train positions animated
 // with requestAnimationFrame (capped at ~30 fps) from the latest snapshot. With a focused line the map frames
 // it, fades the other shapes and only draws that line's trains and stations.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import type { DataDrivenPropertyValueSpecification, GeoJSONSource, IControl, Map as MlMap, Popup } from 'maplibre-gl';
-import type { Network, Snapshot, VehicleRun } from '@/lib/types';
+import type { LngLat, Network, Snapshot, VehicleRun } from '@/lib/types';
+import { distanceM } from '@/lib/geo';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
 import { fadeColor, lineBounds } from '@/lib/client/lineFocus';
 import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
@@ -58,6 +59,23 @@ function arrowImage(): ImageData {
 }
 /** Vehicle circle radius by zoom; the arrow icon is scaled so its inner circle matches it. */
 const VEHICLE_RADIUS: [number, number][] = [[9, 3], [12, 7], [15, 11]];
+/** Phones: smaller dots zoomed out, where a whole network fits in 390 px. */
+const VEHICLE_RADIUS_MOBILE: [number, number][] = [[9, 2], [12, 5], [15, 10]];
+const MOBILE_QUERY = '(max-width: 720px)';
+const isMobile = () => typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches;
+
+/** Live `(max-width: 720px)` match; false on the server. */
+function useMobile(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const m = window.matchMedia(MOBILE_QUERY);
+      m.addEventListener('change', onChange);
+      return () => m.removeEventListener('change', onChange);
+    },
+    isMobile,
+    () => false,
+  );
+}
 
 export interface LiveMapProps {
   network: Network;
@@ -97,16 +115,28 @@ function shapesData(network: Network, dark: boolean): FC {
   return featureCollection(features);
 }
 
+/** Platforms of different lines closer than this (m) share one dot. */
+const STATION_MERGE_M = 40;
+
+/**
+ * One dot per line stopping at a station, on that line's trace (nearby platforms share a dot); only the first dot
+ * of a station carries its name label. With a focus, only the focused line's dot.
+ */
 function stationsData(network: Network, focus: string | null): FC {
-  return featureCollection(
-    Object.values(network.stations)
-      .filter((s) => (focus ? s.lines.includes(focus) : s.lines.some((id) => network.lines[id])))
-      .map((s) => ({
-        type: 'Feature',
-        properties: { id: s.id, name: s.name },
-        geometry: { type: 'Point', coordinates: [s.lon, s.lat] },
-      })),
-  );
+  const features: GeoJSON.Feature[] = [];
+  for (const s of Object.values(network.stations)) {
+    const lines = focus ? s.lines.filter((id) => id === focus) : s.lines.filter((id) => network.lines[id]);
+    if (lines.length === 0) continue;
+    const dots: LngLat[] = [];
+    for (const id of lines) {
+      const p = s.points?.[id] ?? [s.lon, s.lat];
+      if (!dots.some((d) => distanceM(d, p) < STATION_MERGE_M)) dots.push(p);
+    }
+    dots.forEach((p, i) =>
+      features.push({ type: 'Feature', properties: { id: s.id, name: s.name, label: i === 0 }, geometry: { type: 'Point', coordinates: p } }),
+    );
+  }
+  return featureCollection(features);
 }
 
 const isFocus = (focus: string): ['==', ['get', 'lineId'], string] => ['==', ['get', 'lineId'], focus];
@@ -175,6 +205,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const [popupNode, setPopupNode] = useState<HTMLDivElement | null>(null);
   const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const mobile = useMobile();
 
   // Latest props/state for the animation loop and map handlers, synced once the render is committed.
   useLayoutEffect(() => {
@@ -197,6 +228,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
 
     const addLayers = (m: MlMap) => {
       if (m.getSource('lines')) return;
+      const radius = isMobile() ? VEHICLE_RADIUS_MOBILE : VEHICLE_RADIUS;
       const firstSymbol = m.getStyle().layers.find((l) => l.type === 'symbol')?.id;
       m.addSource('lines', { type: 'geojson', data: shapesData(network, media.matches) });
       m.addSource('stations', { type: 'geojson', data: stationsData(network, focusRef.current) });
@@ -233,6 +265,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         id: 'station-labels',
         type: 'symbol',
         source: 'stations',
+        filter: ['get', 'label'],
         minzoom: focusRef.current ? 0 : STATION_LABELS_MINZOOM,
         layout: {
           'text-field': ['get', 'name'],
@@ -267,7 +300,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         filter: ['has', 'bearing'],
         layout: {
           'icon-image': ARROW_IMAGE,
-          'icon-size': ['interpolate', ['linear'], ['zoom'], ...VEHICLE_RADIUS.flatMap(([z, r]) => [z, r / ARROW_CIRCLE_PX])] as DataDrivenPropertyValueSpecification<number>,
+          'icon-size': ['interpolate', ['linear'], ['zoom'], ...radius.flatMap(([z, r]) => [z, r / ARROW_CIRCLE_PX])] as DataDrivenPropertyValueSpecification<number>,
           'icon-rotate': ['get', 'bearing'],
           'icon-rotation-alignment': 'map',
           'icon-pitch-alignment': 'map',
@@ -287,7 +320,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         type: 'circle',
         source: 'vehicles',
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], ...VEHICLE_RADIUS.flat()] as DataDrivenPropertyValueSpecification<number>,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], ...radius.flat()] as DataDrivenPropertyValueSpecification<number>,
           'circle-color': ['get', 'color'],
           'circle-stroke-color': media.matches ? '#10141b' : '#ffffff',
           'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 2],
@@ -377,6 +410,10 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       // No `compact` option: full credits stay visible on wide screens (compact: true folds them to an "i" on the first
       // drag); MapLibre switches to the foldable compact form by itself under 640 px.
       map.addControl(new ml.AttributionControl({ customAttribution: 'Données IDFM (PRIM)' }), 'bottom-right');
+      // Phones: credits start folded behind the "i" (MapLibre opens them on load), so they don't cover the sheet.
+      if (isMobile()) {
+        map.once('load', () => containerRef.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
+      }
       map.addControl(new ml.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
       map.addControl(tiltControl(), 'top-right');
       map.on('style.load', () => {
@@ -471,6 +508,13 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       return;
     }
     if (readyRef.current) map.setFilter('vehicle-halo', ['==', ['get', 'id'], selectedId]);
+    if (mobile) {
+      // Phones: the card is a bottom sheet (rendered below); the train is moved into the visible top part of the map.
+      map.easeTo({ center: pos.coord, offset: [0, -window.innerHeight * 0.22], duration: CAMERA_MS });
+      return () => {
+        if (readyRef.current && mapRef.current) mapRef.current.setFilter('vehicle-halo', ['==', ['get', 'id'], '']);
+      };
+    }
     const node = document.createElement('div');
     const popup = new mapLib.Popup({
       closeOnClick: false,
@@ -484,6 +528,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       .addTo(map);
     popup.on('close', () => setSelectedId((id) => (id === selectedId ? null : id)));
     popupRef.current = popup;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the portal target is a DOM node MapLibre's popup owns
     setPopupNode(node);
 
     // Keep the card inside the free map area (off the side panel, above the bottom sheet) when it opens, grows (fold
@@ -525,7 +570,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       setPopupNode(null);
       if (readyRef.current && mapRef.current) mapRef.current.setFilter('vehicle-halo', ['==', ['get', 'id'], '']);
     };
-  }, [selectedId, mapLib]);
+  }, [selectedId, mapLib, mobile]);
 
   // The panel's size changes (sheet dragged, window resized): the open card keeps avoiding it.
   useEffect(() => {
@@ -557,26 +602,32 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   }, [selectedId]);
 
   const selectedLine = selectedView ? network.lines[selectedView.run.lineId] : null;
+  const card =
+    selectedView && selectedLine ? (
+      <VehiclePopup
+        key={selectedView.run.id}
+        network={network}
+        run={selectedView.run}
+        runs={selectedView.runs}
+        position={selectedView.position}
+        fetchedAt={selectedView.fetchedAt}
+        now={selectedView.now}
+        onOpenLine={(lineId) => callbacksRef.current.onOpenLine(lineId)}
+      />
+    ) : null;
 
   return (
     <>
       <div ref={containerRef} className="live-map" role="region" aria-label="Carte des rames en circulation" />
-      {popupNode &&
-        selectedView &&
-        selectedLine &&
-        createPortal(
-          <VehiclePopup
-            key={selectedView.run.id}
-            network={network}
-            run={selectedView.run}
-            runs={selectedView.runs}
-            position={selectedView.position}
-            fetchedAt={selectedView.fetchedAt}
-            now={selectedView.now}
-            onOpenLine={(lineId) => callbacksRef.current.onOpenLine(lineId)}
-          />,
-          popupNode,
-        )}
+      {!mobile && popupNode && card && createPortal(card, popupNode)}
+      {mobile && card && (
+        <div className="vehicle-sheet" role="dialog" aria-label="Rame sélectionnée">
+          <button type="button" className="vehicle-sheet-close" aria-label="Fermer" onClick={() => setSelectedId(null)}>
+            ×
+          </button>
+          {card}
+        </div>
+      )}
     </>
   );
 }

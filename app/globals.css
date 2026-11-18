@@ -671,3 +671,45 @@ button.vc-model[aria-pressed='true'] { text-decoration-style: solid; text-decora
 
 .maplibregl-ctrl button.ltp-tilt { font: 700 12px/1 system-ui, sans-serif; color: #1f2633; }
 .maplibregl-ctrl button.ltp-tilt[aria-pressed='true'] { background: #1f2633; color: #fff; }
+
+/* Phones: vehicle card as a bottom sheet, folded credits, no zoom buttons (pinch to zoom) */
+.vehicle-sheet { display: none; }
+@media (max-width: 720px) {
+  .vehicle-sheet {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    max-height: 56%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 14px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    color: var(--ink);
+    border-top: 1px solid var(--glass-edge);
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+    box-shadow: 0 -8px 28px rgba(15, 20, 30, 0.18);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    animation: sheet-up 180ms ease-out;
+  }
+  .vehicle-sheet .vehicle-popup { width: auto; max-height: none; overflow: visible; }
+  .vehicle-sheet-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 22px;
+    line-height: 1;
+  }
+  .maplibregl-ctrl-zoom-in,
+  .maplibregl-ctrl-zoom-out { display: none !important; }
+}
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .vehicle-sheet { animation: none; } }
