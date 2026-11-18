@@ -41,6 +41,23 @@ function operatorOf(j: Raw): Journey['operator'] {
   return 'OTHER';
 }
 
+/** SNCF journeys only: mission code (JourneyNote), train number (VehicleJourneyName), length (VehicleFeatureRef). */
+function sncfExtras(j: Raw): Pick<Journey, 'mission' | 'trainNumber' | 'length'> {
+  if (!str(j.DatedVehicleJourneyRef as Val).startsWith('SNCF_')) return { mission: null, trainNumber: null, length: null };
+  const feats = arr(j.VehicleFeatureRef).map((f) => (typeof f === 'string' ? f : str(f as Val)));
+  return {
+    mission: first(j.JourneyNote) || null,
+    trainNumber: first(j.VehicleJourneyName) || null,
+    length: feats.includes('longTrain') ? 'long' : feats.includes('shortTrain') ? 'short' : null,
+  };
+}
+
+function delta(exp: unknown, aimed: unknown): number | null {
+  const e = time(exp);
+  const t = time(aimed);
+  return e !== null && t !== null ? Math.round((e - t) / 1000) : null;
+}
+
 function parseJourney(j: Raw): Journey | null {
   const lineId = /::(C\d+):/.exec(str(j.LineRef as Val))?.[1];
   if (!lineId || !isTargetLine(lineId)) return null;
@@ -51,7 +68,9 @@ function parseJourney(j: Raw): Journey | null {
     const a = time(c.ExpectedArrivalTime) ?? time(c.AimedArrivalTime);
     const d = time(c.ExpectedDepartureTime) ?? time(c.AimedDepartureTime);
     if (!quay || (a === null && d === null)) continue;
-    calls.push({ quay, arr: a, dep: d });
+    const delaySec =
+      delta(c.ExpectedArrivalTime, c.AimedArrivalTime) ?? delta(c.ExpectedDepartureTime, c.AimedDepartureTime);
+    calls.push({ quay, arr: a, dep: d, delaySec });
   }
   if (calls.length === 0) return null;
   calls.sort((x, y) => (x.arr ?? x.dep!) - (y.arr ?? y.dep!));
@@ -61,6 +80,7 @@ function parseJourney(j: Raw): Journey | null {
     direction: str(j.DirectionRef as Val),
     destination: first(j.DestinationName) || first(j.DestinationShortName) || first(j.DirectionName),
     operator: operatorOf(j),
+    ...sncfExtras(j),
     calls,
   };
 }

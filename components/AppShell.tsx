@@ -75,6 +75,7 @@ export function AppShell({ initialLineId }: { initialLineId: string | null }) {
           centerStationId={centerStationId}
           panelInset={inset}
           onStationClick={setStationId}
+          onOpenLine={onFocusLine}
           onShownCountChange={setShownCount}
         />
       )}
@@ -93,7 +94,7 @@ export function AppShell({ initialLineId }: { initialLineId: string | null }) {
         onFocusLine={onFocusLine}
         onStationSelect={onStationSelect}
       />
-      {network && stationId && <StationPanel stationId={stationId} network={network} onClose={closeStation} />}
+      {network && stationId && <StationPanel key={stationId} stationId={stationId} network={network} onClose={closeStation} />}
     </main>
   );
 }

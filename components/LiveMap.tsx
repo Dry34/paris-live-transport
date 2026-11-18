@@ -2,14 +2,19 @@
 // Full-screen MapLibre map: line shapes, stations and estimated train positions animated
 // with requestAnimationFrame (capped at ~30 fps) from the latest snapshot. With a focused line the map frames
 // it, fades the other shapes and only draws that line's trains and stations.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { DataDrivenPropertyValueSpecification, GeoJSONSource, Map as MlMap, Popup } from 'maplibre-gl';
+import type { DataDrivenPropertyValueSpecification, GeoJSONSource, IControl, Map as MlMap, Popup } from 'maplibre-gl';
 import type { Network, Snapshot, VehicleRun } from '@/lib/types';
 import { createSmoother, positionAt, type RunPosition } from '@/lib/client/interpolate';
 import { fadeColor, lineBounds } from '@/lib/client/lineFocus';
 import { maplibreWorkerUrl } from '@/lib/client/maplibreWorker';
+import { panIntoView, popupPadding } from '@/lib/client/popupView';
 import { VehiclePopup } from './VehiclePopup';
+import { createTrain3dLayer, type Train3d, type Train3dLayer } from './train3dLayer';
+import { model3dForLine, MODEL_MIN_ZOOM, trackAround } from '@/lib/client/train3d';
+import { runUnits } from '@/lib/client/trainProfile';
+import { stockForLine } from '@/lib/rollingStock';
 
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const STYLE_DARK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
@@ -30,9 +35,9 @@ const BASEMAP_BG = { light: '#fafaf8', dark: '#0e0e0e' } as const;
 type FC = GeoJSON.FeatureCollection;
 const featureCollection = (features: GeoJSON.Feature[]): FC => ({ type: 'FeatureCollection', features });
 
-/** Direction arrow drawn as an SDF icon: a chevron just outside a centred circle of ARROW_CIRCLE_PX radius. */
+/** Direction arrow drawn as an SDF icon: a triangle sticking out of a centred circle of ARROW_CIRCLE_PX radius. */
 const ARROW_IMAGE = 'vehicle-arrow';
-const ARROW_SIZE_PX = 64;
+const ARROW_SIZE_PX = 96;
 const ARROW_CIRCLE_PX = 18;
 function arrowImage(): ImageData {
   const size = ARROW_SIZE_PX;
@@ -44,9 +49,9 @@ function arrowImage(): ImageData {
   const base = c - ARROW_CIRCLE_PX + 3; // base hidden under the circle's edge
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.moveTo(c, 2); // tip, pointing north
-  ctx.lineTo(c + 10, base);
-  ctx.lineTo(c - 10, base);
+  ctx.moveTo(c, 4); // tip, pointing north
+  ctx.lineTo(c + 16, base);
+  ctx.lineTo(c - 16, base);
   ctx.closePath();
   ctx.fill();
   return ctx.getImageData(0, 0, size, size);
@@ -64,10 +69,17 @@ export interface LiveMapProps {
   /** Map area covered by the side panel, kept clear when framing. */
   panelInset: { left: number; bottom: number };
   onStationClick: (stationId: string) => void;
+  /** Header of the train card clicked: focus that line. */
+  onOpenLine: (lineId: string) => void;
   onShownCountChange?: (count: number) => void;
 }
 
-interface SelectedView { run: VehicleRun; position: RunPosition; now: number }
+interface SelectedView { run: VehicleRun; runs: VehicleRun[]; fetchedAt: number; position: RunPosition; now: number }
+/** Train card width on desktop; narrower screens keep a 12 px margin on each side. */
+const POPUP_MAX_WIDTH = 'min(340px, calc(100vw - 24px))';
+/** Gap kept between the train card and the map edges or the side panel. */
+const POPUP_MARGIN = 12;
+const POPUP_PAN_MS = 300;
 
 function shapesData(network: Network, dark: boolean): FC {
   const features: GeoJSON.Feature[] = [];
@@ -113,7 +125,39 @@ function applyFocusStyle(m: MlMap, focus: string | null) {
   m.setLayerZoomRange('station-labels', focus ? 0 : STATION_LABELS_MINZOOM, 24);
 }
 
-export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onShownCountChange }: LiveMapProps) {
+const TILT_PITCH = 60;
+const TILT_ZOOM = 15;
+
+/** "3D" button: tilts the camera (zooming in so the 3D trains show) or flattens it back. */
+function tiltControl(): IControl {
+  let container: HTMLDivElement | null = null;
+  return {
+    onAdd(map) {
+      container = document.createElement('div');
+      container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ltp-tilt';
+      button.textContent = '3D';
+      button.title = 'Vue 3D';
+      button.setAttribute('aria-label', 'Basculer la vue 3D');
+      const sync = () => button.setAttribute('aria-pressed', String(map.getPitch() > 5));
+      button.addEventListener('click', () => {
+        if (map.getPitch() > 5) map.easeTo({ pitch: 0, duration: CAMERA_MS });
+        else map.easeTo({ pitch: TILT_PITCH, zoom: Math.max(map.getZoom(), TILT_ZOOM), duration: CAMERA_MS });
+      });
+      map.on('pitchend', sync);
+      sync();
+      container.appendChild(button);
+      return container;
+    },
+    onRemove() {
+      container?.remove();
+    },
+  };
+}
+
+export function LiveMap({ network, snapshot, focusLineId, centerStationId, panelInset, onStationClick, onOpenLine, onShownCountChange }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const readyRef = useRef(false);
@@ -124,7 +168,7 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const framedRef = useRef<string | null>(null);
   const positionsRef = useRef(new Map<string, RunPosition>());
   const selectedRef = useRef<string | null>(null);
-  const callbacksRef = useRef({ onStationClick, onShownCountChange });
+  const callbacksRef = useRef({ onStationClick, onOpenLine, onShownCountChange });
   const popupRef = useRef<Popup | null>(null);
   const [mapLib, setMapLib] = useState<typeof import('maplibre-gl') | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -132,10 +176,13 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
-  snapshotRef.current = snapshot;
-  callbacksRef.current = { onStationClick, onShownCountChange };
-  insetRef.current = panelInset;
-  selectedRef.current = selectedId;
+  // Latest props/state for the animation loop and map handlers, synced once the render is committed.
+  useLayoutEffect(() => {
+    snapshotRef.current = snapshot;
+    callbacksRef.current = { onStationClick, onOpenLine, onShownCountChange };
+    insetRef.current = panelInset;
+    selectedRef.current = selectedId;
+  });
 
   // Map creation, layers and the animation loop.
   useEffect(() => {
@@ -144,6 +191,9 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
     let map: MlMap | null = null;
     const media = window.matchMedia(DARK_QUERY);
     const smooth = createSmoother();
+    let trains3d: Train3dLayer | null = null;
+    /** Hidden where a 3D model is drawn instead (zoomed in, line with a model). */
+    const flatOpacity = ['step', ['zoom'], 1, MODEL_MIN_ZOOM, ['case', ['get', 'm3d'], 0, 1]] as DataDrivenPropertyValueSpecification<number>;
 
     const addLayers = (m: MlMap) => {
       if (m.getSource('lines')) return;
@@ -225,9 +275,11 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
           'icon-ignore-placement': true,
         },
         paint: {
-          'icon-color': ['get', 'color'],
-          'icon-halo-color': media.matches ? '#10141b' : '#ffffff',
-          'icon-halo-width': 1,
+          // Contrasting fill + halo (not the line colour): the arrow sits on the track and must stand out.
+          'icon-color': media.matches ? '#ffffff' : '#141821',
+          'icon-halo-color': media.matches ? '#141821' : '#ffffff',
+          'icon-halo-width': 1.6,
+          'icon-opacity': flatOpacity,
         },
       });
       m.addLayer({
@@ -239,8 +291,12 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
           'circle-color': ['get', 'color'],
           'circle-stroke-color': media.matches ? '#10141b' : '#ffffff',
           'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 2],
+          'circle-opacity': flatOpacity,
+          'circle-stroke-opacity': flatOpacity,
         },
       });
+      trains3d = createTrain3dLayer();
+      m.addLayer(trains3d);
       m.addLayer({
         id: 'vehicle-labels',
         type: 'symbol',
@@ -270,20 +326,27 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       const focus = focusRef.current;
       const positions = new Map<string, RunPosition>();
       const features: GeoJSON.Feature[] = [];
+      const models: Train3d[] = [];
+      const show3d = map.getZoom() >= MODEL_MIN_ZOOM;
       for (const run of snap?.runs ?? []) {
         const line = network.lines[run.lineId];
         if (!line || (focus && run.lineId !== focus)) continue;
-        const p = smooth(run.id, positionAt(run, network, now));
+        const p = smooth(run, positionAt(run, network, now), now, run.id === selectedRef.current);
         if (!p) continue;
         positions.set(run.id, p);
+        const model = model3dForLine(run.lineId);
+        if (model && show3d) {
+          models.push({ spec: model, units: runUnits(run, stockForLine(run.lineId)[0]), track: trackAround(run, network, p), coord: p.coord, bearing: p.bearing });
+        }
         features.push({
           type: 'Feature',
-          properties: { id: run.id, color: line.color, textColor: line.textColor, label: line.shortName, ...(p.bearing === null ? {} : { bearing: p.bearing }) },
+          properties: { id: run.id, color: line.color, textColor: line.textColor, label: line.shortName, m3d: model !== null, ...(p.bearing === null ? {} : { bearing: p.bearing }) },
           geometry: { type: 'Point', coordinates: p.coord },
         });
       }
       positionsRef.current = positions;
       void source.setData(featureCollection(features));
+      trains3d?.update(models);
       const sel = selectedRef.current;
       if (sel && popupRef.current) {
         const p = positions.get(sel);
@@ -314,7 +377,8 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
       // No `compact` option: full credits stay visible on wide screens (compact: true folds them to an "i" on the first
       // drag); MapLibre switches to the foldable compact form by itself under 640 px.
       map.addControl(new ml.AttributionControl({ customAttribution: 'Données IDFM (PRIM)' }), 'bottom-right');
-      map.addControl(new ml.NavigationControl({ showCompass: false }), 'top-right');
+      map.addControl(new ml.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
+      map.addControl(tiltControl(), 'top-right');
       map.on('style.load', () => {
         readyRef.current = false;
         addLayers(map!);
@@ -408,20 +472,65 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
     }
     if (readyRef.current) map.setFilter('vehicle-halo', ['==', ['get', 'id'], selectedId]);
     const node = document.createElement('div');
-    const popup = new mapLib.Popup({ closeOnClick: false, offset: 14, maxWidth: '280px', focusAfterOpen: false })
+    const popup = new mapLib.Popup({
+      closeOnClick: false,
+      offset: 14,
+      maxWidth: POPUP_MAX_WIDTH,
+      focusAfterOpen: false,
+      padding: popupPadding(insetRef.current, POPUP_MARGIN),
+    })
       .setLngLat(pos.coord)
       .setDOMContent(node)
       .addTo(map);
     popup.on('close', () => setSelectedId((id) => (id === selectedId ? null : id)));
     popupRef.current = popup;
     setPopupNode(node);
+
+    // Keep the card inside the free map area (off the side panel, above the bottom sheet) when it opens, grows (fold
+    // opened) or after a programmatic camera move (line framed from the header). A drag or zoom by the user disarms
+    // it until the next click inside the card, so the map never fights the user.
+    let armed = true;
+    let ownPan = false;
+    const el = popup.getElement();
+    const keepInView = () => {
+      if (!armed || map.isMoving()) return;
+      const c = map.getContainer().getBoundingClientRect();
+      const pad = popupPadding(insetRef.current, POPUP_MARGIN);
+      const area = { left: c.left + pad.left, top: c.top + pad.top, right: c.right - pad.right, bottom: c.bottom - pad.bottom };
+      const [x, y] = panIntoView(el.getBoundingClientRect(), area);
+      if (Math.abs(x) < 1 && Math.abs(y) < 1) return;
+      ownPan = true;
+      map.panBy([x, y], { duration: POPUP_PAN_MS });
+    };
+    const arm = () => (armed = true);
+    const onMoveStart = (e: { originalEvent?: unknown }) => {
+      if (e.originalEvent) armed = false;
+    };
+    const onMoveEnd = () => {
+      if (ownPan) ownPan = false;
+      else keepInView();
+    };
+    const resizes = new ResizeObserver(keepInView);
+    resizes.observe(el);
+    el.addEventListener('click', arm);
+    map.on('movestart', onMoveStart);
+    map.on('moveend', onMoveEnd);
     return () => {
+      resizes.disconnect();
+      el.removeEventListener('click', arm);
+      map.off('movestart', onMoveStart);
+      map.off('moveend', onMoveEnd);
       popupRef.current = null;
       popup.remove();
       setPopupNode(null);
       if (readyRef.current && mapRef.current) mapRef.current.setFilter('vehicle-halo', ['==', ['get', 'id'], '']);
     };
   }, [selectedId, mapLib]);
+
+  // The panel's size changes (sheet dragged, window resized): the open card keeps avoiding it.
+  useEffect(() => {
+    popupRef.current?.setPadding(popupPadding(panelInset, POPUP_MARGIN));
+  }, [panelInset]);
 
   // Popup text and the shown-trains counter refresh once per second (not per frame).
   useEffect(() => {
@@ -432,14 +541,15 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         setSelectedView(null);
         return;
       }
-      const run = snapshotRef.current?.runs.find((r) => r.id === id);
+      const snap = snapshotRef.current;
+      const run = snap?.runs.find((r) => r.id === id);
       const position = positionsRef.current.get(id);
-      if (!run || !position) {
+      if (!snap || !run || !position) {
         setSelectedId(null);
         setSelectedView(null);
         return;
       }
-      setSelectedView({ run, position, now: Date.now() });
+      setSelectedView({ run, runs: snap.runs, fetchedAt: snap.fetchedAt, position, now: Date.now() });
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -447,7 +557,6 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
   }, [selectedId]);
 
   const selectedLine = selectedView ? network.lines[selectedView.run.lineId] : null;
-  const nextQuay = selectedView?.position.nextQuay;
 
   return (
     <>
@@ -457,11 +566,14 @@ export function LiveMap({ network, snapshot, focusLineId, centerStationId, panel
         selectedLine &&
         createPortal(
           <VehiclePopup
-            line={selectedLine}
-            destination={selectedView.run.destination}
+            key={selectedView.run.id}
+            network={network}
+            run={selectedView.run}
+            runs={selectedView.runs}
             position={selectedView.position}
-            nextStopName={nextQuay ? (network.quays[nextQuay]?.name ?? null) : null}
+            fetchedAt={selectedView.fetchedAt}
             now={selectedView.now}
+            onOpenLine={(lineId) => callbacksRef.current.onOpenLine(lineId)}
           />,
           popupNode,
         )}

@@ -4,7 +4,7 @@ Carte en direct des métros, RER, tramways et Transilien J/L de Paris, avec posi
 
 ## Fonctionnalités
 
-- Carte MapLibre avec les rames de 38 lignes (16 métros, 5 RER, 15 tramways, Transilien J et L), aux couleurs officielles des lignes.
+- Carte MapLibre avec les rames de 45 lignes (16 métros, 5 RER, 15 tramways, 9 Transilien : H, J, K, L, N, P, R, U, V), aux couleurs officielles des lignes.
 - Positions des rames estimées en continu entre deux arrêts, avec une garde anti-recul quand un nouvel instantané corrige légèrement une rame.
 - Panneau latéral : pastilles des lignes (un clic met la ligne en focus), informations sur une rame (ligne, destination, prochain arrêt).
 - Panneau de station : prochains passages par ligne et direction.

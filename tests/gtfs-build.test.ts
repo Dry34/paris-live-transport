@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parse } from 'csv-parse/sync';
 import type { LngLat, Pattern, Quay } from '../lib/types';
-import { distanceM } from '../lib/geo';
+import { cumulativeLengths, distanceM } from '../lib/geo';
 import {
   buildPatterns,
+  lineShapesFromSegments,
   buildSegments,
   buildStations,
   computeRuntimes,
@@ -101,6 +102,34 @@ describe('buildSegments', () => {
     expect(distanceM(c[c.length - 1], [quays.B.lon, quays.B.lat])).toBeLessThan(1);
     expect(c.length).toBe(2); // A→B along the last leg only, not backwards around the loop
   });
+  it('picks the shortest forward slice when the shape passes A several times (zigzag / terminal loop)', () => {
+    // three parallel legs ~55 m apart: east on 48.85, back west on 48.8505, east again on 48.851.
+    // A's global nearest point is on the return leg; projecting from there runs the long way to leg 3.
+    const zigzag: LngLat[] = [
+      [2.30, 48.85], [2.3075, 48.85], [2.32, 48.85],
+      [2.32, 48.8505], [2.30, 48.8505],
+      [2.30, 48.851], [2.32, 48.851],
+    ];
+    const q: Record<string, Quay> = {
+      A: { id: 'A', name: 'A', lon: 2.305, lat: 48.8504, stationId: 'A' },
+      B: { id: 'B', name: 'B', lon: 2.31, lat: 48.8501, stationId: 'B' },
+    };
+    const p: Pattern = { lineId: 'C01371', directionId: 0, quays: ['A', 'B'], trips: 5, headsign: 'B' };
+    const c = buildSegments([p], q, new Map([[p, zigzag]]), new Map())['A>B'].coords;
+    const straight = distanceM([q.A.lon, q.A.lat], [q.B.lon, q.B.lat]);
+    const len = cumulativeLengths(c).at(-1)!;
+    expect(c.length).toBeGreaterThan(2); // follows the shape (through the 2.3075 vertex), not a fallback
+    expect(len).toBeGreaterThan(0.8 * straight);
+    expect(len).toBeLessThan(1.2 * straight);
+    expect(distanceM(c[0], [2.305, 48.85])).toBeLessThan(1);
+  });
+  it('falls back to a straight line when even the shortest slice is implausibly long', () => {
+    // the shape leaves A, makes a 3 km detour north and only then reaches B (735 m from A)
+    const detour: LngLat[] = [[2.30, 48.85], [2.30, 48.88], [2.31, 48.88], [2.31, 48.85]];
+    const p: Pattern = { lineId: 'C01371', directionId: 0, quays: ['A', 'B'], trips: 5, headsign: 'B' };
+    const seg = buildSegments([p], quays, new Map([[p, detour]]), new Map());
+    expect(seg['A>B'].coords).toHaveLength(2);
+  });
 });
 
 describe('buildStations', () => {
@@ -126,5 +155,34 @@ describe('simplifyLine', () => {
   it('drops points within tolerance and keeps corners', () => {
     const line: LngLat[] = [[2.3, 48.85], [2.30001, 48.85000001], [2.301, 48.85], [2.301, 48.851]];
     expect(simplifyLine(line, 5)).toEqual([[2.3, 48.85], [2.301, 48.85], [2.301, 48.851]]);
+  });
+});
+
+describe('lineShapesFromSegments', () => {
+  const Q = (id: string, stationId: string, lon: number): Quay => ({ id, name: id, lon, lat: 48.9, stationId });
+  const quays: Record<string, Quay> = {
+    a: Q('a', 'SA', 2.0), b: Q('b', 'SB', 2.01), c: Q('c', 'SC', 2.02), d: Q('d', 'SD', 2.03),
+    a2: Q('a2', 'SA', 2.0), b2: Q('b2', 'SB', 2.01), c2: Q('c2', 'SC', 2.02),
+  };
+  const seg = (x: number, y: number) => ({ coords: [[x, 48.9], [(x + y) / 2, 48.9], [y, 48.9]] as LngLat[], seconds: 60 });
+  const segments = {
+    'a>b': seg(2.0, 2.01), 'b>c': seg(2.01, 2.02), 'c>d': seg(2.02, 2.03),
+    'c2>b2': seg(2.02, 2.01), 'b2>a2': seg(2.01, 2.0),
+    // A segment of another line through a station this line doesn't use: never drawn for L.
+    'x>y': { coords: [[2.5, 49], [2.6, 49]] as LngLat[], seconds: 60 },
+  };
+  const P = (quaysList: string[], trips: number, lineId = 'L'): Pattern => ({ lineId, directionId: 0, quays: quaysList, trips, headsign: '' });
+
+  it('draws only the stop-to-stop segments the line runs on, chained, each station pair once', () => {
+    const shapes = lineShapesFromSegments([P(['a', 'b', 'c', 'd'], 10), P(['c2', 'b2', 'a2'], 8), P(['x', 'y'], 5, 'OTHER')], segments, quays, 'L');
+    expect(shapes).toHaveLength(1);
+    expect(shapes[0][0]).toEqual([2.0, 48.9]);
+    expect(shapes[0].at(-1)).toEqual([2.03, 48.9]);
+    expect(shapes[0].some(([lon]) => lon > 2.1)).toBe(false);
+  });
+
+  it('starts a new polyline after a stretch already drawn', () => {
+    const shapes = lineShapesFromSegments([P(['b', 'c'], 10), P(['a', 'b', 'c', 'd'], 5)], segments, quays, 'L');
+    expect(shapes.map((s) => [s[0][0], s.at(-1)![0]])).toEqual([[2.01, 2.02], [2.0, 2.01], [2.02, 2.03]]);
   });
 });

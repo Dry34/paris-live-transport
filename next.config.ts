@@ -1,7 +1,13 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
+import { securityHeaders } from './lib/securityHeaders';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  poweredByHeader: false,
+  // No AGENTS.md written by next dev.
+  agentRules: false,
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders(process.env.NODE_ENV !== 'production') }];
+  },
 };
 
 export default nextConfig;

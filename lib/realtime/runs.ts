@@ -81,7 +81,7 @@ function inferredPrevious(jr: Journey, net: Network): Previous {
   const pred = preds.find((p) => net.segments[`${p.quay}>${c0.quay}`]);
   if (!pred) return 'reject';
   const seconds = net.segments[`${pred.quay}>${c0.quay}`].seconds;
-  return { stop: { quay: pred.quay, arr: null, dep: at(c0) - seconds * 1000 }, inferred: true };
+  return { stop: { quay: pred.quay, arr: null, dep: at(c0) - seconds * 1000, delaySec: null }, inferred: true };
 }
 
 function isTerminus(quay: string, lineId: string, net: Network): boolean {
@@ -170,6 +170,9 @@ export function buildRuns(journeys: Journey[], network: Network, previous: Vehic
       stops: [...(prev.stop ? [prev.stop] : []), ...jr.calls.map((c) => ({ ...c }))],
       hasPrevious: prev.stop !== null,
       prevInferred: prev.inferred,
+      mission: jr.mission ?? null,
+      trainNumber: jr.trainNumber ?? null,
+      length: jr.length ?? null,
     });
   });
   return mergeAndHide(runs);
@@ -208,6 +211,9 @@ function mergeAndHide(runs: VehicleRun[]): VehicleRun[] {
     if (twin.k === twin.run.stops.length - 1 && at(z) >= (y.dep ?? y.arr)!) {
       twin.run.stops.push({ ...z });
       addCall(twin.run, twin.run.stops.length - 1);
+      twin.run.mission ??= r.mission;
+      twin.run.trainNumber ??= r.trainNumber;
+      twin.run.length ??= r.length;
       removed.add(r);
     } else {
       r.hide = 'always';

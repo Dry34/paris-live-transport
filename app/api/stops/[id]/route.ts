@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { departuresForStation } from '@/lib/realtime/departures';
+import { liveCacheControl } from '@/lib/realtime/httpCache';
 import { getNetwork, getPoller } from '@/lib/realtime/poller';
 
 export const runtime = 'nodejs';
@@ -14,7 +15,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
   const poller = getPoller();
   poller.start();
+  await poller.refresh().catch(() => undefined);
   const snap = poller.snapshot();
   const departures = snap ? departuresForStation(snap, getNetwork(), stationId, Date.now()) : {};
-  return NextResponse.json({ stationId, name: station.name, departures }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ stationId, name: station.name, departures }, { headers: { 'Cache-Control': liveCacheControl() } });
 }

@@ -1,5 +1,5 @@
-import type { LngLat, Network, RunStop, VehicleRun } from '../types';
-import { bearingAtFraction, pointAtFraction } from '../geo';
+import type { LngLat, Mode, Network, RunStop, Segment, VehicleRun } from '../types';
+import { bearingAtFraction, cumulativeLengths, distanceM, pointAtFraction } from '../geo';
 
 export type RunPosition = {
   coord: LngLat;
@@ -21,12 +21,56 @@ export const PREVIOUS_WAIT_MS = 60_000;
 /** A train waiting at its first stop (terminus, no previous station) is only drawn this long before departure. */
 export const TERMINUS_WAIT_MS = 10 * 60_000;
 
+/**
+ * Fastest plausible average speed (km/h) between two stops, per mode. A train whose section would need more
+ * is hidden until its position is consistent again, rather than drawn racing across the map.
+ */
+export const MAX_SPEED_KMH: Record<Mode, number> = { metro: 100, tram: 90, rer: 180, transilien: 180 };
+
+const segmentLengths = new WeakMap<Segment, number>();
+/** Length (m) of a segment's polyline, computed once per segment object. */
+function segmentLength(seg: Segment): number {
+  let len = segmentLengths.get(seg);
+  if (len === undefined) {
+    len = seg.coords.length < 2 ? 0 : cumulativeLengths(seg.coords)[seg.coords.length - 1];
+    segmentLengths.set(seg, len);
+  }
+  return len;
+}
+
 const arrOf = (s: RunStop): number | null => s.arr ?? s.dep;
 const depOf = (s: RunStop): number | null => s.dep ?? s.arr;
 
+/**
+ * Stop time (ms) given to a train at an intermediate station the feed gives no dwell for (RATP metro
+ * calls carry the same arrival and departure time), so trains visibly stop instead of gliding through.
+ */
+export const MIN_DWELL_MS: Record<Mode, number> = { metro: 20_000, tram: 20_000, rer: 30_000, transilien: 30_000 };
+
+/** Spreads a zero dwell around the feed time, never over more than a third of the adjoining sections. */
+function withDwells(stops: RunStop[], mode: Mode | undefined): RunStop[] {
+  if (!mode || stops.length < 3) return stops;
+  let out: RunStop[] | null = null;
+  for (let i = 1; i < stops.length - 1; i++) {
+    const s = stops[i];
+    const t = arrOf(s);
+    const d = depOf(s);
+    if (t === null || d === null || d > t) continue;
+    const prev = depOf(stops[i - 1]);
+    const next = arrOf(stops[i + 1]);
+    if (prev === null || next === null) continue;
+    const half = Math.min(MIN_DWELL_MS[mode] / 2, (t - prev) / 3, (next - t) / 3);
+    if (!(half > 0)) continue;
+    out ??= [...stops];
+    out[i] = { ...s, arr: t - half, dep: t + half };
+  }
+  return out ?? stops;
+}
+
 export function positionAt(run: VehicleRun, network: Network, now: number): RunPosition | null {
-  const { stops } = run;
-  if (stops.length === 0 || run.hide === 'always') return null;
+  if (run.stops.length === 0 || run.hide === 'always') return null;
+  const mode = network.lines?.[run.lineId]?.mode;
+  const stops = withDwells(run.stops, mode);
 
   const sectionBearing = (from: number, to: number, f: 0 | 1): number | null => {
     if (from < 0 || to >= stops.length) return null;
@@ -69,6 +113,8 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
       const seg = network.segments[segmentKey];
       if (!seg || seg.coords.length === 0 || !network.quays[stops[i].quay] || !network.quays[next.quay]) return null;
       const span = nextArr - dep;
+      const cap = mode ? MAX_SPEED_KMH[mode] : undefined;
+      if (cap !== undefined && span > 0 && (segmentLength(seg) / (span / 1000)) * 3.6 > cap) return null;
       const fraction = span > 0 ? Math.min(1, Math.max(0, (now - dep) / span)) : 1;
       return {
         coord: pointAtFraction(seg.coords, fraction),
@@ -84,28 +130,55 @@ export function positionAt(run: VehicleRun, network: Network, now: number): RunP
   return null;
 }
 
-/** A small step back in the same section (a re-estimate), as opposed to a jump to a new section. */
-export function isBackwardJitter(prevFraction: number, fraction: number): boolean {
-  return fraction < prevFraction && prevFraction - fraction <= 0.5;
+/** Longest time a train is held in place while a fresher estimate puts it behind where it is shown. */
+export const MAX_HOLD_MS = 150_000;
+
+/** Position along the run's stop list: stop index, plus the fraction of the section when moving; null if off the run. */
+function progressOf(run: VehicleRun, p: RunPosition): number | null {
+  const quay = p.segmentKey !== null ? p.segmentKey.slice(0, p.segmentKey.indexOf('>')) : p.nextQuay;
+  const i = run.stops.findIndex((s) => s.quay === quay);
+  if (i < 0) return null;
+  return p.segmentKey !== null ? i + Math.min(p.fraction, 0.999) : i;
 }
 
-export function createSmoother(): (runId: string, p: RunPosition | null) => RunPosition | null {
-  const last = new Map<string, RunPosition>();
-  return (runId, p) => {
+/** A train that would jump further than this (m) in one step disappears and reappears at its new place. */
+export const JUMP_HIDE_M = 150;
+/** How long such a train stays hidden (ms). */
+export const REAPPEAR_MS = 1500;
+
+/**
+ * Keeps trains from teleporting when a fresher snapshot moves their estimate:
+ * - put behind where it is shown (running late): the train stays where it is (at a station, it waits there)
+ *   until the new estimate catches up, for at most MAX_HOLD_MS; after that, or if the shown position is no
+ *   longer on the run, it takes the fresh position;
+ * - put far ahead (> JUMP_HIDE_M): it disappears for REAPPEAR_MS and reappears at the right place, instead of
+ *   sliding or racing there. `keepVisible` (the selected train, whose card must stay open) skips the hiding.
+ */
+export function createSmoother(): (run: VehicleRun, p: RunPosition | null, now: number, keepVisible?: boolean) => RunPosition | null {
+  const last = new Map<string, { pos: RunPosition; heldSince: number | null; hiddenUntil: number }>();
+  return (run, p, now, keepVisible = false) => {
     if (!p) {
-      last.delete(runId);
+      last.delete(run.id);
       return null;
     }
-    const prev = last.get(runId);
-    if (
-      prev &&
-      prev.segmentKey !== null &&
-      prev.segmentKey === p.segmentKey &&
-      isBackwardJitter(prev.fraction, p.fraction)
-    ) {
-      return prev;
+    const prev = last.get(run.id);
+    if (prev) {
+      if (now < prev.hiddenUntil && !keepVisible) {
+        prev.pos = p;
+        return null;
+      }
+      const shown = progressOf(run, prev.pos);
+      const fresh = progressOf(run, p);
+      if (shown !== null && fresh !== null && fresh < shown) {
+        prev.heldSince ??= now;
+        if (now - prev.heldSince <= MAX_HOLD_MS) return prev.pos;
+      }
+      if (!keepVisible && now >= prev.hiddenUntil && distanceM(prev.pos.coord, p.coord) > JUMP_HIDE_M) {
+        last.set(run.id, { pos: p, heldSince: null, hiddenUntil: now + REAPPEAR_MS });
+        return null;
+      }
     }
-    last.set(runId, p);
+    last.set(run.id, { pos: p, heldSince: null, hiddenUntil: 0 });
     return p;
   };
 }

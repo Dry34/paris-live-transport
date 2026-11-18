@@ -159,7 +159,7 @@ export function directionLabel(branches: FocusBranch[], directionId: 0 | 1): str
 
 export interface StationArrival { seconds: number | null; atPlatform: boolean }
 
-const normName = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+export const normName = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /**
  * Does the run, stopping at index k (a quay of branch.stations[i]), travel along the branch?

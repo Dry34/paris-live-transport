@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Network, VehicleRun } from '../lib/types';
-import { positionAt, createSmoother, type RunPosition } from '../lib/client/interpolate';
+import { positionAt, createSmoother, MAX_HOLD_MS, REAPPEAR_MS, type RunPosition } from '../lib/client/interpolate';
 
 const net = {
   quays: {
@@ -76,25 +76,106 @@ describe('positionAt', () => {
 });
 
 describe('createSmoother', () => {
-  const p = (fraction: number, segmentKey: string | null = 'A>B'): RunPosition => ({
-    coord: [0, fraction], state: 'moving', segmentKey, fraction, nextQuay: 'B', nextTime: 0, bearing: 0,
+  // Run A -> B -> C; positions expressed along it.
+  const run3 = (stops = ['A', 'B', 'C']): VehicleRun => mk(stops.map((quay) => ({ quay, arr: 0, dep: 0 })));
+  const moving = (from: string, to: string, fraction: number): RunPosition => ({
+    coord: [fraction * 0.0001, 0], state: 'moving', segmentKey: `${from}>${to}`, fraction, nextQuay: to, nextTime: 0, bearing: 0,
   });
+  const at = (quay: string): RunPosition => ({ coord: [0, 0], state: 'dwelling', segmentKey: null, fraction: 0, nextQuay: quay, nextTime: 0, bearing: 0 });
+
   it('never goes backwards on the same segment', () => {
     const s = createSmoother();
-    expect(s('r', p(0.5))!.fraction).toBe(0.5);
-    expect(s('r', p(0.45))!.fraction).toBe(0.5);
-    expect(s('r', p(0.6))!.fraction).toBe(0.6);
-    expect(s('r', p(0.1, 'B>C'))!.fraction).toBe(0.1);
+    expect(s(run3(), moving('A', 'B', 0.5), 0)!.fraction).toBe(0.5);
+    expect(s(run3(), moving('A', 'B', 0.2), 1000)!.fraction).toBe(0.5);
+    expect(s(run3(), moving('A', 'B', 0.6), 2000)!.fraction).toBe(0.6);
   });
-  it('accepts large backward jump (>0.5) and isolates runs', () => {
+  it('holds a train that a fresher estimate puts back in an earlier section or at an earlier station', () => {
     const s = createSmoother();
-    s('r', p(0.9));
-    expect(s('r', p(0.3))!.fraction).toBe(0.3);
-    s('q', p(0.8));
-    expect(s('r', p(0.35))!.fraction).toBe(0.35);
+    s(run3(), moving('B', 'C', 0.3), 0);
+    expect(s(run3(), moving('A', 'B', 0.9), 1000)).toMatchObject({ segmentKey: 'B>C', fraction: 0.3 });
+    expect(s(run3(), at('B'), 2000)).toMatchObject({ segmentKey: 'B>C', fraction: 0.3 });
+    // The estimate catches up: the train moves on.
+    expect(s(run3(), moving('B', 'C', 0.35), 3000)).toMatchObject({ segmentKey: 'B>C', fraction: 0.35 });
   });
-  it('passes null through', () => {
-    expect(createSmoother()('r', null)).toBeNull();
+  it('a train held at a station waits there', () => {
+    const s = createSmoother();
+    s(run3(), at('B'), 0);
+    expect(s(run3(), moving('A', 'B', 0.8), 1000)).toMatchObject({ state: 'dwelling', nextQuay: 'B' });
+    expect(s(run3(), moving('B', 'C', 0.1), 2000)).toMatchObject({ segmentKey: 'B>C' });
+  });
+  it('gives up holding after MAX_HOLD_MS and takes the fresh position', () => {
+    const s = createSmoother();
+    s(run3(), moving('B', 'C', 0.3), 0);
+    expect(s(run3(), moving('A', 'B', 0.5), 1000)!.segmentKey).toBe('B>C');
+    expect(s(run3(), moving('A', 'B', 0.5), 1000 + MAX_HOLD_MS + 1)!.segmentKey).toBe('A>B');
+  });
+  it('accepts the fresh position when the shown one is no longer on the run (stop dropped as passed)', () => {
+    const s = createSmoother();
+    s(run3(['X', 'A', 'B']), moving('X', 'A', 0.5), 0);
+    expect(s(run3(), moving('A', 'B', 0.2), 1000)!.segmentKey).toBe('A>B');
+  });
+  it('hides a train that a fresher estimate puts far ahead, then shows it at its new place', () => {
+    const s = createSmoother();
+    const far = (from: string, to: string, f: number): RunPosition => ({ ...moving(from, to, f), coord: [0, f * 0.01] });
+    s(run3(), far('A', 'B', 0.1), 0);
+    // 0.1 -> 0.9 of a 1.1 km section: ~890 m ahead in one frame.
+    expect(s(run3(), far('A', 'B', 0.9), 100)).toBeNull();
+    expect(s(run3(), far('A', 'B', 0.92), 100 + REAPPEAR_MS - 1)).toBeNull();
+    expect(s(run3(), far('A', 'B', 0.95), 100 + REAPPEAR_MS)).toMatchObject({ fraction: 0.95 });
+    // Normal progress is never hidden.
+    expect(s(run3(), far('A', 'B', 0.96), 200 + REAPPEAR_MS)).toMatchObject({ fraction: 0.96 });
+  });
+  it('keeps the selected train visible through a jump', () => {
+    const s = createSmoother();
+    const far = (f: number): RunPosition => ({ ...moving('A', 'B', f), coord: [0, f * 0.01] });
+    s(run3(), far(0.1), 0, true);
+    expect(s(run3(), far(0.9), 100, true)).toMatchObject({ fraction: 0.9 });
+  });
+  it('isolates runs and passes null through', () => {
+    const s = createSmoother();
+    s(run3(), moving('B', 'C', 0.9), 0);
+    expect(s({ ...run3(), id: 'q' }, moving('A', 'B', 0.1), 0)!.segmentKey).toBe('A>B');
+    expect(s(run3(), null, 0)).toBeNull();
+    expect(s(run3(), moving('A', 'B', 0.1), 0)!.segmentKey).toBe('A>B');
+  });
+});
+
+describe('positionAt synthetic dwell', () => {
+  const line = (mode: string) => ({ lines: { L: { mode } } });
+  const net3 = {
+    quays: {
+      A: { id: 'A', name: 'A', lon: 0, lat: 0, stationId: 'sA' },
+      B: { id: 'B', name: 'B', lon: 0, lat: 0.005, stationId: 'sB' },
+      C: { id: 'C', name: 'C', lon: 0, lat: 0.01, stationId: 'sC' },
+    },
+    segments: {
+      'A>B': { coords: [[0, 0], [0, 0.005]], seconds: 60 },
+      'B>C': { coords: [[0, 0.005], [0, 0.01]], seconds: 60 },
+    },
+  };
+  // Metro feed: same arrival and departure time at B.
+  const r = mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: t0 + 60_000 }, { quay: 'C', arr: t0 + 120_000, dep: null }]);
+  it('stops a metro 20 s at a station the feed gives no dwell for, centred on the feed time', () => {
+    const n = { ...net3, ...line('metro') } as unknown as Network;
+    expect(positionAt(r, n, t0 + 50_000 - 1)!.state).toBe('moving');
+    expect(positionAt(r, n, t0 + 50_000)!.state).toBe('dwelling');
+    expect(positionAt(r, n, t0 + 69_999)!.state).toBe('dwelling');
+    expect(positionAt(r, n, t0 + 70_000)!.state).toBe('moving');
+  });
+  it('uses 30 s for RER and keeps real dwells untouched', () => {
+    const n = { ...net3, ...line('rer') } as unknown as Network;
+    expect(positionAt(r, n, t0 + 45_000)!.state).toBe('dwelling');
+    expect(positionAt(r, n, t0 + 44_000)!.state).toBe('moving');
+    const real = mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: t0 + 70_000 }, { quay: 'C', arr: t0 + 120_000, dep: null }]);
+    expect(positionAt(real, n, t0 + 59_000)!.state).toBe('moving');
+    expect(positionAt(real, n, t0 + 65_000)!.state).toBe('dwelling');
+  });
+  it('never takes more than a third of a short section', () => {
+    // A 55 m section, so the speed cap does not hide the train.
+    const n = { ...net3, segments: { ...net3.segments, 'A>B': { coords: [[0, 0], [0, 0.0005]], seconds: 15 } }, ...line('metro') } as unknown as Network;
+    const short = mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 15_000, dep: t0 + 15_000 }, { quay: 'C', arr: t0 + 75_000, dep: null }]);
+    expect(positionAt(short, n, t0 + 9_000)!.state).toBe('moving');
+    expect(positionAt(short, n, t0 + 11_000)!.state).toBe('dwelling');
   });
 });
 
@@ -129,5 +210,44 @@ describe('positionAt bearing', () => {
   it('null when no section geometry is known around the quay', () => {
     const lone = mk([{ quay: 'A', arr: null, dep: t0 }]);
     expect(positionAt(lone, east, t0 - 5_000)!.bearing).toBeNull();
+  });
+});
+
+describe('positionAt implied speed cap (hide instead of teleporting)', () => {
+  const M_PER_DEG = 111_195;
+  const netWith = (lengthM: number) => ({
+    lines: {
+      M: { id: 'M', shortName: 'M', mode: 'metro', color: '', textColor: '', longName: '' },
+      T: { id: 'T', shortName: 'T', mode: 'tram', color: '', textColor: '', longName: '' },
+      R: { id: 'R', shortName: 'R', mode: 'rer', color: '', textColor: '', longName: '' },
+    },
+    quays: {
+      A: { id: 'A', name: 'A', lon: 0, lat: 0, stationId: 'sA' },
+      B: { id: 'B', name: 'B', lon: 0, lat: lengthM / M_PER_DEG, stationId: 'sB' },
+    },
+    segments: { 'A>B': { coords: [[0, 0], [0, lengthM / M_PER_DEG]], seconds: 60 } },
+  }) as unknown as Network;
+  const runOn = (lineId: string): VehicleRun => ({
+    ...mk([{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: null }]),
+    lineId,
+  });
+  it('metro: 10 km in 60 s (600 km/h) is hidden', () => {
+    expect(positionAt(runOn('M'), netWith(10_000), t0 + 30_000)).toBeNull();
+  });
+  it('metro: 1 km in 60 s (60 km/h) is drawn', () => {
+    expect(positionAt(runOn('M'), netWith(1_000), t0 + 30_000)!.state).toBe('moving');
+  });
+  it('tram: 1.6 km in 60 s (96 km/h) is hidden', () => {
+    expect(positionAt(runOn('T'), netWith(1_600), t0 + 30_000)).toBeNull();
+  });
+  it('rer: 2.5 km in 60 s (150 km/h) is drawn', () => {
+    expect(positionAt(runOn('R'), netWith(2_500), t0 + 30_000)!.state).toBe('moving');
+  });
+  it('unknown line: no cap', () => {
+    expect(positionAt(runOn('?'), netWith(10_000), t0 + 30_000)!.state).toBe('moving');
+  });
+  it('the cap only applies while moving: the same train dwelling at B is drawn', () => {
+    const r = { ...runOn('M'), stops: [{ quay: 'A', arr: null, dep: t0 }, { quay: 'B', arr: t0 + 60_000, dep: t0 + 90_000 }] };
+    expect(positionAt(r, netWith(10_000), t0 + 70_000)!.state).toBe('dwelling');
   });
 });
