@@ -3,7 +3,11 @@ export type LngLat = [number, number];
 
 export interface LineInfo { id: string; shortName: string; mode: Mode; color: string; textColor: string; longName: string }
 export interface Quay { id: string; name: string; lon: number; lat: number; stationId: string }
-export interface Station { id: string; name: string; lon: number; lat: number; quays: string[]; lines: string[] }
+export interface Station {
+  id: string; name: string; lon: number; lat: number; quays: string[]; lines: string[];
+  /** Where each line stops here, on that line's trace (an interchange has one point per line). */
+  points?: Record<string, LngLat>;
+}
 export interface Pattern { lineId: string; directionId: 0 | 1; quays: string[]; trips: number; headsign: string }
 export interface Segment { coords: LngLat[]; seconds: number }           // clé "A>B" (quayIds)
 export interface Network {

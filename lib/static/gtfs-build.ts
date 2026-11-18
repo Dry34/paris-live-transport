@@ -260,3 +260,98 @@ export function lineShapesFromSegments(
   }
   return out;
 }
+
+const samepoint = (a: LngLat, b: LngLat) => a[0] === b[0] && a[1] === b[1];
+
+/**
+ * Moves every quay onto the track: GTFS quay coordinates sit beside the rails (often 20-100 m away), while the
+ * segments start and end on the line's shape. A quay takes the mean of the segment ends that touch it; straight
+ * fallback segments (drawn between the raw quay coordinates) are ignored, then redrawn between the moved quays.
+ */
+export function snapQuaysToSegments(
+  quays: Record<string, Quay>,
+  segments: Record<string, Segment>,
+): { quays: Record<string, Quay>; segments: Record<string, Segment> } {
+  const ends = new Map<string, LngLat[]>();
+  const straight = new Set<string>();
+  for (const [key, seg] of Object.entries(segments)) {
+    const [a, b] = key.split('>');
+    const qa = quays[a];
+    const qb = quays[b];
+    if (!qa || !qb || seg.coords.length < 2) continue;
+    if (seg.coords.length === 2 && samepoint(seg.coords[0], [qa.lon, qa.lat]) && samepoint(seg.coords[1], [qb.lon, qb.lat])) {
+      straight.add(key);
+      continue;
+    }
+    for (const [q, p] of [[a, seg.coords[0]], [b, seg.coords[seg.coords.length - 1]]] as [string, LngLat][]) {
+      const list = ends.get(q) ?? [];
+      list.push(p);
+      ends.set(q, list);
+    }
+  }
+  const outQuays: Record<string, Quay> = {};
+  for (const [id, q] of Object.entries(quays)) {
+    const list = ends.get(id);
+    outQuays[id] = list
+      ? { ...q, lon: list.reduce((s, p) => s + p[0], 0) / list.length, lat: list.reduce((s, p) => s + p[1], 0) / list.length }
+      : q;
+  }
+  const outSegments: Record<string, Segment> = { ...segments };
+  for (const key of straight) {
+    const [a, b] = key.split('>');
+    outSegments[key] = { ...segments[key], coords: [[outQuays[a].lon, outQuays[a].lat], [outQuays[b].lon, outQuays[b].lat]] };
+  }
+  return { quays: outQuays, segments: outSegments };
+}
+
+/** Closest point of a polyline to p (local equirectangular projection, fine at station scale). */
+function nearestOnLine(line: LngLat[], p: LngLat): { point: LngLat; dist: number } {
+  let best = { point: line[0], dist: distanceM(line[0], p) };
+  const k = Math.cos((p[1] * Math.PI) / 180);
+  for (let i = 0; i + 1 < line.length; i++) {
+    const [a, b] = [line[i], line[i + 1]];
+    const bx = (b[0] - a[0]) * k;
+    const by = b[1] - a[1];
+    const len2 = bx * bx + by * by;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, (((p[0] - a[0]) * k) * bx + (p[1] - a[1]) * by) / len2));
+    const q: LngLat = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const d = distanceM(q, p);
+    if (d < best.dist) best = { point: q, dist: d };
+  }
+  return best;
+}
+
+/**
+ * Where each line stops in each station, on that line's drawn trace: the mean of the line's quays there, projected
+ * onto the closest of the line's polylines. An interchange gets one point per line (Montparnasse: the line 4
+ * platforms are 500 m from the station centroid).
+ */
+export function stationLinePoints(
+  stations: Record<string, Station>,
+  quays: Record<string, Quay>,
+  patterns: Pattern[],
+  lineShapes: Record<string, LngLat[][]>,
+): Record<string, Record<string, LngLat>> {
+  const linesOfQuay = new Map<string, Set<string>>();
+  for (const p of patterns) for (const q of p.quays) (linesOfQuay.get(q) ?? linesOfQuay.set(q, new Set()).get(q)!).add(p.lineId);
+  const out: Record<string, Record<string, LngLat>> = {};
+  for (const st of Object.values(stations)) {
+    const byLine = new Map<string, LngLat[]>();
+    for (const qid of st.quays) {
+      const q = quays[qid];
+      if (!q) continue;
+      for (const l of linesOfQuay.get(qid) ?? []) (byLine.get(l) ?? byLine.set(l, []).get(l)!).push([q.lon, q.lat]);
+    }
+    for (const [lineId, pts] of byLine) {
+      const mean: LngLat = [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+      let best: { point: LngLat; dist: number } | null = null;
+      for (const shape of lineShapes[lineId] ?? []) {
+        if (shape.length === 0) continue;
+        const c = nearestOnLine(shape, mean);
+        if (!best || c.dist < best.dist) best = c;
+      }
+      (out[st.id] ??= {})[lineId] = best ? best.point : mean;
+    }
+  }
+  return out;
+}
